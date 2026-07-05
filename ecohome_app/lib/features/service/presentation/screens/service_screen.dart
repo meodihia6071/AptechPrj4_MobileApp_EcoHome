@@ -33,7 +33,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Custom Tab Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -110,10 +110,10 @@ class _ServiceScreenState extends State<ServiceScreen> {
             boxShadow: isActive
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
-                    )
+                    ),
                   ]
                 : [],
           ),

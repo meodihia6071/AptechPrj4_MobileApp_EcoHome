@@ -16,7 +16,11 @@ class AppHeader extends StatelessWidget {
               const CircleAvatar(
                 radius: 22,
                 backgroundColor: AppColors.secondary,
-                child: Icon(Icons.person_rounded, color: Colors.white, size: 28),
+                child: Icon(
+                  Icons.person_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
               const SizedBox(width: 12),
               const Text(
@@ -33,17 +37,24 @@ class AppHeader extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: () {},
-                icon: const Icon(Icons.notifications_none_rounded, size: 28, color: AppColors.primary),
+                icon: const Icon(
+                  Icons.notifications_none_rounded,
+                  size: 28,
+                  color: AppColors.primary,
+                ),
               ),
               Positioned(
                 right: 12,
                 top: 12,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
                   constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
                 ),
-              )
+              ),
             ],
           ),
         ],

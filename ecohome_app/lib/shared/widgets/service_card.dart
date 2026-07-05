@@ -32,10 +32,10 @@ class ServiceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Column(
@@ -89,7 +89,10 @@ class ServiceCard extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFDCFCE7), // Xanh lá nhạt
                         borderRadius: BorderRadius.circular(20),
@@ -115,19 +118,41 @@ class ServiceCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Kỳ thanh toán tiếp', style: TextStyle(fontSize: 11, color: AppColors.secondary)),
+                        const Text(
+                          'Kỳ thanh toán tiếp',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.secondary,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(nextPaymentDate, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        Text(
+                          nextPaymentDate,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text('Phí duy trì', style: TextStyle(fontSize: 11, color: AppColors.secondary)),
+                        const Text(
+                          'Phí duy trì',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.secondary,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           fee,
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ],
                     ),
@@ -141,10 +166,18 @@ class ServiceCard extends StatelessWidget {
                         onPressed: onDetailPressed,
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Color(0xFFE2E8F0)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: const Text('Chi tiết', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                        child: const Text(
+                          'Chi tiết',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -152,11 +185,21 @@ class ServiceCard extends StatelessWidget {
                       child: OutlinedButton(
                         onPressed: onCancelPressed,
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFFFECDD3)), // Đỏ nhạt
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          side: const BorderSide(
+                            color: Color(0xFFFECDD3),
+                          ), // Đỏ nhạt
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: const Text('Hủy đăng ký', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
+                        child: const Text(
+                          'Hủy đăng ký',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   ],

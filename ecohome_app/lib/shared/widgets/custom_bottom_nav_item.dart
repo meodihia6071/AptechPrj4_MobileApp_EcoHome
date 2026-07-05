@@ -5,7 +5,7 @@ class CustomBottomNavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
-  final VoidCallback onTap; 
+  final VoidCallback onTap;
 
   const CustomBottomNavItem({
     super.key,

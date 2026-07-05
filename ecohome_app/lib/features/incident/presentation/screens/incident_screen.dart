@@ -22,23 +22,36 @@ class _IncidentScreenState extends State<IncidentScreen> {
           children: [
             Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
             SizedBox(width: 8),
-            Text('Xác nhận thu hồi', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'Xác nhận thu hồi',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
-        content: Text('Bạn có chắc chắn muốn thu hồi báo cáo sự cố $incidentId không? Hành động này không thể hoàn tác.'),
+        content: Text(
+          'Bạn có chắc chắn muốn thu hồi báo cáo sự cố $incidentId không? Hành động này không thể hoàn tác.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy bỏ', style: TextStyle(color: AppColors.secondary)),
+            child: const Text(
+              'Hủy bỏ',
+              style: TextStyle(color: AppColors.secondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Đã thu hồi báo cáo $incidentId thành công')),
+                SnackBar(
+                  content: Text('Đã thu hồi báo cáo $incidentId thành công'),
+                ),
               );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Xác nhận thu hồi'),
           ),
         ],
@@ -50,11 +63,15 @@ class _IncidentScreenState extends State<IncidentScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 20, left: 20, right: 20,
+          top: 20,
+          left: 20,
+          right: 20,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -63,27 +80,47 @@ class _IncidentScreenState extends State<IncidentScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Tạo báo cáo sự cố mới', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                const Text(
+                  'Tạo báo cáo sự cố mới',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
               ],
             ),
             const SizedBox(height: 16),
-            const Text('Tiêu đề sự cố', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text(
+              'Tiêu đề sự cố',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             TextField(
               decoration: InputDecoration(
                 hintText: 'Ví dụ: Rò rỉ nước sảnh tầng 5',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Mô tả chi tiết', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text(
+              'Mô tả chi tiết',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             TextField(
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: 'Nhập nội dung sự cố bạn gặp phải...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -94,10 +131,15 @@ class _IncidentScreenState extends State<IncidentScreen> {
                 onPressed: () {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Gửi báo cáo sự cố thành công!')),
+                    const SnackBar(
+                      content: Text('Gửi báo cáo sự cố thành công!'),
+                    ),
                   );
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
                 child: const Text('Gửi ban quản lý'),
               ),
             ),
@@ -125,9 +167,22 @@ class _IncidentScreenState extends State<IncidentScreen> {
                 const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Danh sách báo cáo', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                    Text(
+                      'Danh sách báo cáo',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
                     SizedBox(height: 4),
-                    Text('Quản lý các sự cố bạn đã gửi', style: TextStyle(fontSize: 13, color: AppColors.secondary)),
+                    Text(
+                      'Quản lý các sự cố bạn đã gửi',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.secondary,
+                      ),
+                    ),
                   ],
                 ),
                 ElevatedButton.icon(
@@ -137,8 +192,13 @@ class _IncidentScreenState extends State<IncidentScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -172,11 +232,23 @@ class _IncidentScreenState extends State<IncidentScreen> {
                   id: '#INC-20231025-01',
                   time: 'Hôm nay, 09:30',
                   title: 'Rò rỉ nước ống nước nhà vệ sinh',
-                  desc: 'Nước liên tục nhỏ giọt từ ống nối dưới bồn rửa mặt, gây ướt sàn nhà vệ sinh. Cần thợ kiểm tra...',
+                  desc:
+                      'Nước liên tục nhỏ giọt từ ống nối dưới bồn rửa mặt, gây ướt sàn nhà vệ sinh. Cần thợ kiểm tra...',
                   actionWidget: TextButton.icon(
-                    onPressed: () => _showCancelConfirmation('#INC-20231025-01'),
-                    icon: const Icon(Icons.cancel_outlined, size: 16, color: Colors.redAccent),
-                    label: const Text('Thu hồi', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                    onPressed: () =>
+                        _showCancelConfirmation('#INC-20231025-01'),
+                    icon: const Icon(
+                      Icons.cancel_outlined,
+                      size: 16,
+                      color: Colors.redAccent,
+                    ),
+                    label: const Text(
+                      'Thu hồi',
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
                 IncidentCard(
@@ -186,21 +258,38 @@ class _IncidentScreenState extends State<IncidentScreen> {
                   id: '#INC-20231024-03',
                   time: 'Hôm qua, 14:15',
                   title: 'Hỏng đèn hành lang tầng 8',
-                  desc: 'Đèn chiếu sáng khu vực trước thang máy bị cháy, rất tối vào ban đêm.',
+                  desc:
+                      'Đèn chiếu sáng khu vực trước thang máy bị cháy, rất tối vào ban đêm.',
                   bottomLeftWidget: const Row(
                     children: [
-                      Icon(Icons.directions_walk, size: 16, color: AppColors.primary),
+                      Icon(
+                        Icons.directions_walk,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
                       SizedBox(width: 4),
-                      Text('Kỹ thuật viên đang di chuyển', style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w500)),
+                      Text(
+                        'Kỹ thuật viên đang di chuyển',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ],
                   ),
                   actionWidget: OutlinedButton(
                     onPressed: () {},
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFFE2E8F0)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                     ),
-                    child: const Text('Chi tiết', style: TextStyle(color: AppColors.textDark, fontSize: 13)),
+                    child: const Text(
+                      'Chi tiết',
+                      style: TextStyle(color: AppColors.textDark, fontSize: 13),
+                    ),
                   ),
                 ),
                 IncidentCard(
@@ -210,10 +299,17 @@ class _IncidentScreenState extends State<IncidentScreen> {
                   id: '#INC-20231020-05',
                   time: '20/10/2023',
                   title: 'Tiếng ồn từ căn hộ phía trên',
-                  desc: 'Đã liên hệ ban quản lý nhắc nhở căn hộ tầng trên về việc sửa chữa ngoài giờ quy định.',
+                  desc:
+                      'Đã liên hệ ban quản lý nhắc nhở căn hộ tầng trên về việc sửa chữa ngoài giờ quy định.',
                   actionWidget: TextButton(
                     onPressed: () {},
-                    child: const Text('Đánh giá', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Đánh giá',
+                      style: TextStyle(
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -232,7 +328,9 @@ class _IncidentScreenState extends State<IncidentScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0).withOpacity(0.5),
+          color: isSelected
+              ? AppColors.primary
+              : const Color(0xFFE2E8F0).withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
