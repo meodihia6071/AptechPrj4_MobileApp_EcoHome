@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:ecohome_app/core/constants/app_colors.dart';
 import 'package:ecohome_app/shared/widgets/app_header.dart';
 import 'package:ecohome_app/features/household/presentation/screens/household_screen.dart';
+import 'package:ecohome_app/features/apartment/presentation/screens/apartment_detail_screen.dart';
 
 class HomeDashboardBody extends StatelessWidget {
-  const HomeDashboardBody({super.key});
+  final Function(int)? onTabChanged;
+
+  const HomeDashboardBody({super.key, this.onTabChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -185,11 +188,22 @@ class HomeDashboardBody extends StatelessWidget {
   ) {
     return GestureDetector(
       onTap: () {
-        if (title == 'Hộ gia đình') {
+        if (title == 'Căn hộ') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ApartmentDetailScreen(),
+            ),
+          );
+        } else if (title == 'Hộ gia đình') {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const HouseholdScreen()),
           );
+        } else if (title == 'Báo cáo') {
+          onTabChanged?.call(1);
+        } else if (title == 'Dịch vụ') {
+          onTabChanged?.call(2);
         }
       },
       child: Container(

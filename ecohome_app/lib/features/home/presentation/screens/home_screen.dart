@@ -4,6 +4,7 @@ import 'package:ecohome_app/shared/widgets/custom_bottom_nav_item.dart';
 import 'package:ecohome_app/features/home/presentation/screens/home_dashboard_body.dart';
 import 'package:ecohome_app/features/incident/presentation/screens/incident_screen.dart';
 import 'package:ecohome_app/features/service/presentation/screens/service_screen.dart';
+import 'package:ecohome_app/features/account/presentation/screens/account_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,13 +26,19 @@ class _HomeScreenState extends State<HomeScreen> {
         key: _homeNavigatorKey,
         onGenerateRoute: (settings) {
           return MaterialPageRoute(
-            builder: (context) => const HomeDashboardBody(),
+            builder: (context) => HomeDashboardBody(
+              onTabChanged: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+            ),
           );
         },
       ),
       const IncidentScreen(),
       const ServiceScreen(),
-      const Center(child: Text('Màn hình Tài khoản (Đang phát triển)')),
+      const AccountScreen(),
     ];
 
     return Scaffold(
