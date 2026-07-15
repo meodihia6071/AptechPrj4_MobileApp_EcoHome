@@ -1,587 +1,340 @@
 import 'package:flutter/material.dart';
-import 'package:ecohome_app/core/constants/app_colors.dart';
+import 'package:intl/intl.dart';
 
-class ApartmentDetailScreen extends StatelessWidget {
+import '../../../../core/constants/app_colors.dart';
+import '../../data/apartment_api.dart';
+import '../../data/apartment_info.dart';
+
+class ApartmentDetailScreen extends StatefulWidget {
   const ApartmentDetailScreen({super.key});
+
+  @override
+  State<ApartmentDetailScreen> createState() => _ApartmentDetailScreenState();
+}
+
+class _ApartmentDetailScreenState extends State<ApartmentDetailScreen> {
+  final _api = ApartmentApi();
+  late Future<ApartmentInfo> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _api.getCurrentApartment();
+  }
+
+  void _reload() => setState(() => _future = _api.getCurrentApartment());
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.neutralBg,
+      appBar: AppBar(
+        title: const Text('Thông tin căn hộ'),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+      ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // --- 1. HEADER (EcoHome Resident & Notification) ---
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20.0,
-                vertical: 12.0,
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'EcoHome Resident',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const Spacer(),
-                  Stack(
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.notifications_none_rounded,
-                          size: 26,
-                          color: AppColors.primary,
-                        ),
-                        onPressed: () {},
-                      ),
-                      Positioned(
-                        right: 12,
-                        top: 12,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.redAccent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // --- 2. NỘI DUNG CHÍNH ---
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // --- CARD CĂN HỘ CỦA BẠN ---
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'CĂN HỘ CỦA BẠN',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.secondary.withOpacity(0.8),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE3F2FD),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.verified_user_rounded,
-                                      size: 14,
-                                      color: AppColors.primary,
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Đã xác thực',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'A-1205',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.neutralBg,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Icon(
-                                        Icons.layers_outlined,
-                                        size: 20,
-                                        color: AppColors.secondary,
-                                      ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        'Tầng',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.secondary,
-                                        ),
-                                      ),
-                                      Text(
-                                        '12',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.neutralBg,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Icon(
-                                        Icons.architecture_rounded,
-                                        size: 20,
-                                        color: AppColors.secondary,
-                                      ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        'Diện tích',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.secondary,
-                                        ),
-                                      ),
-                                      Text(
-                                        '75m²',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // --- TIÊU ĐỀ KHỐI TÀI CHÍNH ---
-                    const Text(
-                      'Thông tin tài chính',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // --- CARD 1: KỲ THANH TOÁN THUÊ NHÀ ---
-                    _buildFinanceCard(
-                      leftBorderColor: Colors.redAccent,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_today_rounded,
-                                color: Colors.redAccent,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Kỳ thanh toán thuê nhà',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'Đến hạn',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.redAccent,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Số tiền cần thanh toán tháng này',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            '12,500,000 đ',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.redAccent,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 44,
-                            child: ElevatedButton.icon(
-                              onPressed: () {},
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                elevation: 0,
-                              ),
-                              icon: const Icon(
-                                Icons.account_balance_wallet_rounded,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                              label: const Text(
-                                'Thanh toán ngay',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // --- CARD 2: HỢP ĐỒNG MUA BÁN ---
-                    _buildFinanceCard(
-                      leftBorderColor: Colors.teal,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.handshake_rounded,
-                                color: Colors.teal,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Hợp đồng mua bán',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Tổng số tiền đã thanh toán (100%)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            '3,450,000,000 đ',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.teal,
-                            ),
-                          ),
-                          const Divider(height: 24),
-                          const Row(
-                            children: [
-                              Text(
-                                'Hoàn tất thanh toán',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.secondary,
-                                ),
-                              ),
-                              Spacer(),
-                              Icon(
-                                Icons.check_circle_rounded,
-                                color: Colors.teal,
-                                size: 18,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // --- CARD 3: TRẢ GÓP CĂN HỘ ---
-                    _buildFinanceCard(
-                      leftBorderColor: const Color(0xFF0D47A1),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Row(
-                                      children: [
-                                        Icon(
-                                          Icons.pie_chart_rounded,
-                                          color: Color(0xFF0D47A1),
-                                          size: 20,
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Trả góp căn hộ',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    const Text(
-                                      'Đã trả trước (30%)',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.secondary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    const Text(
-                                      '1,035,000,000 đ',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  const SizedBox(
-                                    width: 60,
-                                    height: 60,
-                                    child: CircularProgressIndicator(
-                                      value: 0.3,
-                                      strokeWidth: 6,
-                                      backgroundColor: AppColors.neutralBg,
-                                      color: Color(0xFF0D47A1),
-                                    ),
-                                  ),
-                                  const Text(
-                                    '30%',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF0D47A1),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.neutralBg,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Kỳ thanh toán tiếp theo',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.secondary,
-                                      ),
-                                    ),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      '25,800,000 đ',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  '15/11/2023',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.secondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // --- NÚT HỒ SƠ PHÁP LÝ ---
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: ListTile(
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.folder_open_rounded,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        title: const Text(
-                          'Hồ sơ pháp lý',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        subtitle: const Text(
-                          'Xem hợp đồng và giấy tờ',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.secondary,
-                          ),
-                        ),
-                        trailing: const Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 16,
-                          color: AppColors.secondary,
-                        ),
-                        onTap: () {},
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        child: FutureBuilder<ApartmentInfo>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return _ErrorView(
+                message: snapshot.error.toString(),
+                onRetry: _reload,
+              );
+            }
+            return RefreshIndicator(
+              onRefresh: () async {
+                _reload();
+                await _future;
+              },
+              child: _ApartmentContent(info: snapshot.requireData),
+            );
+          },
         ),
       ),
     );
   }
+}
 
-  Widget _buildFinanceCard({
-    required Color leftBorderColor,
-    required Widget child,
-  }) {
+class _ApartmentContent extends StatelessWidget {
+  const _ApartmentContent({required this.info});
+
+  final ApartmentInfo info;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: _cardDecoration(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'CĂN HỘ CỦA BẠN',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                  _TypeBadge(type: info.contractType),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                info.roomNumber,
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: _InfoTile(
+                      icon: Icons.layers_outlined,
+                      label: 'Tầng',
+                      value: '${info.floor}',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _InfoTile(
+                      icon: Icons.square_foot_rounded,
+                      label: 'Diện tích',
+                      value: '${_number(info.area)} m²',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: _cardDecoration(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'THÔNG TIN THANH TOÁN',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.secondary,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _PaymentRow(
+                label: info.primaryLabel,
+                amount: _money(info.primaryAmount),
+                dueDate: info.secondaryAmount == null ? info.nextDueDate : null,
+              ),
+              if (info.secondaryAmount != null) ...[
+                const Divider(height: 32),
+                _PaymentRow(
+                  label: info.secondaryLabel!,
+                  amount: _money(info.secondaryAmount!),
+                  dueDate: info.nextDueDate,
+                  highlighted: true,
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (info.contractType == ContractType.installment) ...[
+          const SizedBox(height: 12),
+          const Text(
+            'Kỳ trả góp được tính từ số tiền vay chia cho số tháng trong hợp đồng.',
+            style: TextStyle(fontSize: 12, color: AppColors.secondary),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ],
+    );
+  }
+
+  static BoxDecoration _cardDecoration() => BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(20),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: .04),
+        blurRadius: 14,
+        offset: const Offset(0, 4),
+      ),
+    ],
+  );
+
+  static String _number(double value) =>
+      NumberFormat('#,##0.##', 'vi_VN').format(value);
+  static String _money(double value) =>
+      '${NumberFormat('#,##0', 'vi_VN').format(value)} đ';
+}
+
+class _InfoTile extends StatelessWidget {
+  const _InfoTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: AppColors.neutralBg,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 22, color: AppColors.primary),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppColors.secondary),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        ),
+      ],
+    ),
+  );
+}
+
+class _PaymentRow extends StatelessWidget {
+  const _PaymentRow({
+    required this.label,
+    required this.amount,
+    this.dueDate,
+    this.highlighted = false,
+  });
+  final String label;
+  final String amount;
+  final DateTime? dueDate;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: highlighted
+              ? const Color(0xFFFFE4E6)
+              : const Color(0xFFE0E7FF),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          highlighted ? Icons.schedule_rounded : Icons.payments_outlined,
+          color: highlighted ? Colors.redAccent : AppColors.primary,
+        ),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 13, color: AppColors.secondary),
+            ),
+            if (dueDate != null)
+              Text(
+                'Hạn thanh toán: ${DateFormat('dd/MM/yyyy').format(dueDate!)}',
+                style: const TextStyle(fontSize: 12, color: Colors.redAccent),
+              ),
+          ],
+        ),
+      ),
+      Text(
+        amount,
+        style: const TextStyle(
+          fontSize: 17,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textDark,
+        ),
+      ),
+    ],
+  );
+}
+
+class _TypeBadge extends StatelessWidget {
+  const _TypeBadge({required this.type});
+  final ContractType type;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (type) {
+      ContractType.cash => 'Đã mua',
+      ContractType.installment => 'Mua trả góp',
+      ContractType.rental => 'Đang thuê',
+    };
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border(left: BorderSide(color: leftBorderColor, width: 4)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.01),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+        color: const Color(0xFFE3F2FD),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.apartment_outlined,
+            size: 56,
+            color: AppColors.secondary,
+          ),
+          const SizedBox(height: 12),
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Thử lại'),
           ),
         ],
       ),
-      child: child,
-    );
-  }
+    ),
+  );
 }

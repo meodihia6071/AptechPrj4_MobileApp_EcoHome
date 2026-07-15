@@ -62,7 +62,7 @@ class HomeDashboardBody extends StatelessWidget {
                       ),
                       _buildMenuCard(
                         context,
-                        'Báo cáo',
+                        'Báo cáo sự cố',
                         'Gửi yêu cầu',
                         Icons.report_problem_rounded,
                         const Color(0xFFFFE4E6),
@@ -200,7 +200,7 @@ class HomeDashboardBody extends StatelessWidget {
             context,
             MaterialPageRoute(builder: (context) => const HouseholdScreen()),
           );
-        } else if (title == 'Báo cáo') {
+        } else if (title == 'Báo cáo sự cố') {
           onTabChanged?.call(1);
         } else if (title == 'Dịch vụ') {
           onTabChanged?.call(2);
