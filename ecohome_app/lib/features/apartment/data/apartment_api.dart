@@ -12,7 +12,7 @@ class ApartmentApi {
 
   final http.Client _client;
 
-  Future<ApartmentInfo> getCurrentApartment() async {
+  Future<List<ApartmentInfo>> getApartments() async {
     final accountId = AuthSession.accountId;
     if (accountId == null || accountId.isEmpty) {
       throw const ApiException(
@@ -20,6 +20,32 @@ class ApartmentApi {
       );
     }
 
+    final residentId =
+        AuthSession.residentId ?? await _findResidentId(accountId);
+    final resident = await _get('/Residents/$residentId');
+    final contractResidents = _asList(resident['contractResidents']);
+    if (contractResidents.isEmpty) {
+      throw const ApiException('Cư dân chưa có hợp đồng căn hộ.');
+    }
+
+    final seenContracts = <String>{};
+    final futures = <Future<ApartmentInfo>>[];
+    for (final relation in contractResidents) {
+      final contractId = relation['contractId']?.toString();
+      if (contractId == null || !seenContracts.add(contractId)) continue;
+      futures.add(
+        _getApartmentInfo(contractId, _toInt(relation['residentType'])),
+      );
+    }
+    if (futures.isEmpty) {
+      throw const ApiException('Không tìm thấy hợp đồng căn hộ.');
+    }
+    final apartments = await Future.wait(futures);
+    apartments.sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+    return apartments;
+  }
+
+  Future<String> _findResidentId(String accountId) async {
     final residentFilter = await _post('/Residents/filter', {
       'conditions': [
         {'key': 'AccountId', 'guidValue': accountId},
@@ -30,108 +56,84 @@ class ApartmentApi {
       'limit': 20,
     });
     final residents = _asList(residentFilter['results']);
-    if (residents.isEmpty) {
+    final residentId = residents.isEmpty
+        ? null
+        : residents.first['residentId']?.toString();
+    if (residentId == null || residentId.isEmpty) {
       throw const ApiException(
         'Tài khoản chưa được liên kết với hồ sơ cư dân.',
       );
     }
+    return residentId;
+  }
 
-    final residentId = residents.first['residentId']?.toString();
-    if (residentId == null) {
-      throw const ApiException('Không tìm thấy mã cư dân.');
-    }
-    final resident = await _get('/Residents/$residentId');
-    final contractResidents = _asList(resident['contractResidents']);
-    if (contractResidents.isEmpty) {
-      throw const ApiException('Cư dân chưa có hợp đồng căn hộ.');
-    }
-
-    // Backend hiện chưa đánh dấu hợp đồng mặc định; dùng hợp đồng đầu tiên còn hiệu lực.
-    final contractId = contractResidents.first['contractId']?.toString();
-    if (contractId == null) {
-      throw const ApiException('Không tìm thấy hợp đồng căn hộ.');
-    }
+  Future<ApartmentInfo> _getApartmentInfo(
+    String contractId,
+    int residentType,
+  ) async {
     final contract = await _get('/Contracts/$contractId');
     final apartment = _asMap(contract['apartment']);
     if (apartment.isEmpty) {
       throw const ApiException('Hợp đồng chưa được liên kết với căn hộ.');
     }
-    return _mapInfo(contract, apartment);
+    return _mapInfo(contract, apartment, residentType);
   }
 
   ApartmentInfo _mapInfo(
     Map<String, dynamic> contract,
     Map<String, dynamic> apartment,
+    int residentType,
   ) {
-    final typeIndex = _toInt(contract['type']);
-    final type = ContractType.values[typeIndex.clamp(0, 2)];
+    final type = _toInt(contract['type']) == 1
+        ? ContractType.rental
+        : ContractType.cash;
     final rentPrice = _toDouble(apartment['rentPrice']);
     final buyPrice = _toDouble(apartment['buyPrice']);
-    final initialPayment = _toDouble(contract['initialPayment']);
-    final loanAmount = _toDouble(contract['loanAmount']);
-    final months = _toDouble(contract['installmentMonth']);
-    final startDate = DateTime.tryParse(
-      contract['startDate']?.toString() ?? '',
-    );
 
     switch (type) {
       case ContractType.cash:
         return ApartmentInfo(
+          apartmentId: apartment['apartmentId']?.toString() ?? '',
+          contractId: contract['contractId']?.toString() ?? '',
           roomNumber: apartment['roomNumber']?.toString() ?? '--',
           floor: _toInt(apartment['floor']),
           area: _toDouble(apartment['area']),
           contractType: type,
           primaryAmount: buyPrice,
-          primaryLabel: 'Đã thanh toán mua căn hộ',
-          pictureUrl: apartment['pictureUrl']?.toString(),
-        );
-      case ContractType.installment:
-        return ApartmentInfo(
-          roomNumber: apartment['roomNumber']?.toString() ?? '--',
-          floor: _toInt(apartment['floor']),
-          area: _toDouble(apartment['area']),
-          contractType: type,
-          primaryAmount: initialPayment,
-          primaryLabel: 'Đã thanh toán trước',
-          secondaryAmount: months > 0 ? loanAmount / months : loanAmount,
-          secondaryLabel: 'Kỳ thanh toán sắp tới',
-          nextDueDate: _nextMonthlyDueDate(startDate),
+          primaryLabel: 'Giá mua căn hộ',
+          residentType: residentType,
           pictureUrl: apartment['pictureUrl']?.toString(),
         );
       case ContractType.rental:
+        final paymentSchedule = _rentalPaymentSchedule();
         return ApartmentInfo(
+          apartmentId: apartment['apartmentId']?.toString() ?? '',
+          contractId: contract['contractId']?.toString() ?? '',
           roomNumber: apartment['roomNumber']?.toString() ?? '--',
           floor: _toInt(apartment['floor']),
           area: _toDouble(apartment['area']),
           contractType: type,
           primaryAmount: rentPrice,
-          primaryLabel: 'Tiền thuê kỳ sắp tới',
-          nextDueDate: _nextMonthlyDueDate(startDate),
+          primaryLabel: 'Tiền thuê hàng tháng',
+          residentType: residentType,
+          nextDueDate: paymentSchedule.deadline,
+          paymentCountdownDays: paymentSchedule.countdownDays,
           pictureUrl: apartment['pictureUrl']?.toString(),
         );
     }
   }
 
-  DateTime? _nextMonthlyDueDate(DateTime? startDate) {
-    if (startDate == null) return null;
+  ({DateTime deadline, int? countdownDays}) _rentalPaymentSchedule() {
     final now = DateTime.now();
-    var year = now.year;
-    var month = now.month;
-    final maxDay = DateTime(year, month + 1, 0).day;
-    var due = DateTime(year, month, startDate.day.clamp(1, maxDay));
-    if (!due.isAfter(now)) {
-      month++;
-      if (month == 13) {
-        month = 1;
-        year++;
-      }
-      due = DateTime(
-        year,
-        month,
-        startDate.day.clamp(1, DateTime(year, month + 1, 0).day),
+    if (now.day <= 10) {
+      return (
+        deadline: DateTime(now.year, now.month, 10),
+        countdownDays: 10 - now.day,
       );
     }
-    return due;
+
+    final nextMonth = DateTime(now.year, now.month + 1, 10);
+    return (deadline: nextMonth, countdownDays: null);
   }
 
   Future<Map<String, dynamic>> _get(String path) async {

@@ -23,10 +23,15 @@ class AuthApi {
     required String identityNumber,
     required String password,
   }) async {
-    final response = await _post('/Accounts/authenticate', {
-      'identityNumber': identityNumber,
-      'password': password,
-    });
+    late final http.Response response;
+    try {
+      response = await _post('/Accounts/authenticate', {
+        'identityNumber': identityNumber,
+        'password': password,
+      });
+    } on ApiException {
+      throw const ApiException('Sai số căn cước hoặc mật khẩu.');
+    }
     final account = _jsonObject(response.body);
     AuthSession.save(account);
     return account;
