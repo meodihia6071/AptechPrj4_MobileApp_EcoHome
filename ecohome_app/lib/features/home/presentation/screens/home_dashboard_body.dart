@@ -3,11 +3,32 @@ import 'package:ecohome_app/core/constants/app_colors.dart';
 import 'package:ecohome_app/shared/widgets/app_header.dart';
 import 'package:ecohome_app/features/household/presentation/screens/household_screen.dart';
 import 'package:ecohome_app/features/apartment/presentation/screens/apartment_detail_screen.dart';
+import 'package:ecohome_app/features/auth/data/auth_session.dart';
+import 'package:ecohome_app/features/home/data/rent_invoice.dart';
+import 'package:ecohome_app/features/home/data/rent_invoice_api.dart';
+import 'package:intl/intl.dart';
 
-class HomeDashboardBody extends StatelessWidget {
+class HomeDashboardBody extends StatefulWidget {
   final Function(int)? onTabChanged;
 
   const HomeDashboardBody({super.key, this.onTabChanged});
+
+  @override
+  State<HomeDashboardBody> createState() => _HomeDashboardBodyState();
+}
+
+class _HomeDashboardBodyState extends State<HomeDashboardBody> {
+  final _invoiceApi = RentInvoiceApi();
+  late Future<List<RentInvoice>> _invoices;
+
+  @override
+  void initState() {
+    super.initState();
+    _invoices = _invoiceApi.getPendingRentInvoices();
+  }
+
+  void _reloadInvoices() =>
+      setState(() => _invoices = _invoiceApi.getPendingRentInvoices());
 
   @override
   Widget build(BuildContext context) {
@@ -21,9 +42,9 @@ class HomeDashboardBody extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Xin chào, Nguyễn Văn A',
-                    style: TextStyle(
+                  Text(
+                    'Xin chào, ${AuthSession.fullName ?? 'Cư dân'}',
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textDark,
@@ -80,94 +101,9 @@ class HomeDashboardBody extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Hóa đơn cần thanh toán',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () {},
-                              child: const Text(
-                                'Xem tất cả',
-                                style: TextStyle(color: AppColors.primary),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFFBFA),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFFEE2E2)),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFEE2E2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.receipt_long_rounded,
-                                  color: Colors.redAccent,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Phí quản lý tháng 10',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Hạn chót: Hôm nay',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.redAccent,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Text(
-                                '1.250.000đ',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  _RentInvoicesSection(
+                    invoices: _invoices,
+                    onRetry: _reloadInvoices,
                   ),
                 ],
               ),
@@ -201,9 +137,9 @@ class HomeDashboardBody extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const HouseholdScreen()),
           );
         } else if (title == 'Báo cáo sự cố') {
-          onTabChanged?.call(1);
+          widget.onTabChanged?.call(1);
         } else if (title == 'Dịch vụ') {
-          onTabChanged?.call(2);
+          widget.onTabChanged?.call(2);
         }
       },
       child: Container(
@@ -237,6 +173,140 @@ class HomeDashboardBody extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _RentInvoicesSection extends StatelessWidget {
+  const _RentInvoicesSection({required this.invoices, required this.onRetry});
+
+  final Future<List<RentInvoice>> invoices;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: .03),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Hóa đơn cần thanh toán',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 14),
+        FutureBuilder<List<RentInvoice>>(
+          future: invoices,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            if (snapshot.hasError) {
+              return Row(
+                children: [
+                  const Expanded(child: Text('Không thể tải hóa đơn.')),
+                  IconButton(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
+              );
+            }
+            final items = snapshot.data ?? const [];
+            if (items.isEmpty) {
+              return const Row(
+                children: [
+                  Icon(Icons.check_circle_outline, color: Colors.green),
+                  SizedBox(width: 10),
+                  Expanded(child: Text('Không có tiền thuê cần thanh toán.')),
+                ],
+              );
+            }
+            return Column(
+              children: items
+                  .map(
+                    (invoice) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _RentInvoiceCard(invoice: invoice),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+class _RentInvoiceCard extends StatelessWidget {
+  const _RentInvoiceCard({required this.invoice});
+
+  final RentInvoice invoice;
+
+  @override
+  Widget build(BuildContext context) {
+    final deadline = DateFormat('dd/MM/yyyy').format(invoice.deadline);
+    final remaining = invoice.daysRemaining == 0
+        ? 'Hạn chót hôm nay'
+        : 'Còn ${invoice.daysRemaining} ngày';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBFA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFEE2E2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEE2E2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.receipt_long_rounded,
+              color: Colors.redAccent,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tiền thuê phòng ${invoice.roomNumber}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '$remaining • Hạn $deadline',
+                  style: const TextStyle(fontSize: 12, color: Colors.redAccent),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${NumberFormat('#,##0', 'vi_VN').format(invoice.amount)} đ',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+        ],
       ),
     );
   }
