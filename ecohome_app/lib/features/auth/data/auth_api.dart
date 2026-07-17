@@ -34,8 +34,25 @@ class AuthApi {
 
   Future<String> checkAccount(String identityNumber) async {
     final response = await _get('/Accounts/checkAccount/$identityNumber');
-    final decoded = jsonDecode(response.body);
-    return decoded is String ? decoded : response.body.replaceAll('"', '');
+    final body = response.body.trim();
+    if (body.isEmpty) {
+      throw const ApiException('Không tìm thấy email của tài khoản.');
+    }
+
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is String && decoded.trim().isNotEmpty) {
+        return decoded.trim();
+      }
+    } on FormatException {
+      // Backend may return the email as plain text instead of a JSON string.
+    }
+
+    final email = body.replaceAll('"', '').trim();
+    if (email.isEmpty) {
+      throw const ApiException('Không tìm thấy email của tài khoản.');
+    }
+    return email;
   }
 
   Future<void> requestOtp(String email) async {

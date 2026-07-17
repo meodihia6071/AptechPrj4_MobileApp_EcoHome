@@ -26,6 +26,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _loading = false;
   bool _hidePassword = true;
   bool _hideConfirm = true;
+  bool _accountExists = false;
   String _email = '';
   Timer? _timer;
 
@@ -55,6 +56,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       await action();
     } on ApiException catch (error) {
       if (mounted) _showMessage(error.message);
+    } catch (_) {
+      if (mounted) {
+        _showMessage('Đã xảy ra lỗi. Vui lòng kiểm tra kết nối và thử lại.');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -65,12 +70,20 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     await _run(() async {
       final identity = _identityController.text.trim();
       final email = await _api.checkAccount(identity);
-      await _api.requestOtp(email);
       if (!mounted) return;
       setState(() {
         _email = email;
-        _step = 1;
+        _accountExists = true;
       });
+    });
+  }
+
+  Future<void> _startResetPassword() async {
+    if (!_accountExists || _email.isEmpty) return;
+    await _run(() async {
+      await _api.requestOtp(_email);
+      if (!mounted) return;
+      setState(() => _step = 1);
       _startTimer();
     });
   }
@@ -193,10 +206,58 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             ],
             decoration: _decoration('Số căn cước phải là 12 chữ số'),
             validator: _identityValidator,
+            onChanged: (_) {
+              if (_accountExists) {
+                setState(() {
+                  _accountExists = false;
+                  _email = '';
+                });
+              }
+            },
             onFieldSubmitted: (_) => _submitIdentity(),
           ),
           const SizedBox(height: 16),
-          _button('Xác nhận', _submitIdentity),
+          _button(
+            _accountExists ? 'Kiểm tra lại' : 'Kiểm tra tài khoản',
+            _submitIdentity,
+          ),
+          if (_accountExists) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.green.shade700,
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'Tài khoản đã tồn tại',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Bạn có thể tiếp tục để nhận mã OTP qua email và đặt lại mật khẩu.',
+                  ),
+                  const SizedBox(height: 14),
+                  _button('Đặt lại mật khẩu', _startResetPassword),
+                ],
+              ),
+            ),
+          ],
         ],
       );
     }
