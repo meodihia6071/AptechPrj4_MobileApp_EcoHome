@@ -322,6 +322,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           ),
           validator: _passwordValidator,
         ),
+        const SizedBox(height: 8),
+        const Text(
+          'Mật khẩu phải có 8–64 ký tự, gồm chữ hoa, chữ thường, '
+          'chữ số, ký tự đặc biệt và không chứa khoảng trắng.',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
         const SizedBox(height: 16),
         TextFormField(
           controller: _confirmController,
@@ -336,9 +342,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               ),
             ),
           ),
-          validator: (value) => value == _passwordController.text
-              ? null
-              : 'Mật khẩu nhập lại không khớp',
+          validator: _confirmPasswordValidator,
           onFieldSubmitted: (_) => _setPassword(),
         ),
         const SizedBox(height: 18),
@@ -387,8 +391,37 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   String? _passwordValidator(String? value) {
-    if (value == null || value.isEmpty) return 'Vui lòng nhập mật khẩu mới';
-    if (value.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự';
+    final password = value ?? '';
+
+    if (password.isEmpty) return 'Vui lòng nhập mật khẩu mới';
+    if (password.length < 8 || password.length > 64) {
+      return 'Mật khẩu phải có từ 8 đến 64 ký tự';
+    }
+    if (RegExp(r'\s').hasMatch(password)) {
+      return 'Mật khẩu không được chứa khoảng trắng';
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      return 'Mật khẩu phải có ít nhất một chữ hoa';
+    }
+    if (!RegExp(r'[a-z]').hasMatch(password)) {
+      return 'Mật khẩu phải có ít nhất một chữ thường';
+    }
+    if (!RegExp(r'[0-9]').hasMatch(password)) {
+      return 'Mật khẩu phải có ít nhất một chữ số';
+    }
+    if (!RegExp(r'[^A-Za-z0-9\s]').hasMatch(password)) {
+      return 'Mật khẩu phải có ít nhất một ký tự đặc biệt';
+    }
+    return null;
+  }
+
+  String? _confirmPasswordValidator(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Vui lòng nhập lại mật khẩu';
+    }
+    if (value != _passwordController.text) {
+      return 'Mật khẩu nhập lại không khớp';
+    }
     return null;
   }
 }
