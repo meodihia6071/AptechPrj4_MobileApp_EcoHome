@@ -1,34 +1,46 @@
 import 'package:flutter/material.dart';
-import 'package:ecohome_app/core/constants/app_colors.dart';
-import 'package:ecohome_app/shared/widgets/app_header.dart';
-import 'package:ecohome_app/features/household/presentation/screens/household_screen.dart';
-import 'package:ecohome_app/features/apartment/presentation/screens/apartment_detail_screen.dart';
-import 'package:ecohome_app/features/auth/data/auth_session.dart';
-import 'package:ecohome_app/features/home/data/rent_invoice.dart';
-import 'package:ecohome_app/features/home/data/rent_invoice_api.dart';
 import 'package:intl/intl.dart';
 
-class HomeDashboardBody extends StatefulWidget {
-  final Function(int)? onTabChanged;
+import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/widgets/app_header.dart';
+import '../../../apartment/presentation/screens/apartment_detail_screen.dart';
+import '../../../auth/data/auth_session.dart';
+import '../../../household/presentation/screens/household_screen.dart';
+import '../../../payment/data/payment_api.dart';
+import '../../../payment/data/payment_invoice.dart';
+import '../../../payment/presentation/screens/payment_checkout_screen.dart';
 
+class HomeDashboardBody extends StatefulWidget {
   const HomeDashboardBody({super.key, this.onTabChanged});
+
+  final Function(int)? onTabChanged;
 
   @override
   State<HomeDashboardBody> createState() => _HomeDashboardBodyState();
 }
 
 class _HomeDashboardBodyState extends State<HomeDashboardBody> {
-  final _invoiceApi = RentInvoiceApi();
-  late Future<List<RentInvoice>> _invoices;
+  final _invoiceApi = PaymentApi();
+  late Future<List<PaymentInvoice>> _invoices;
 
   @override
   void initState() {
     super.initState();
-    _invoices = _invoiceApi.getPendingRentInvoices();
+    _invoices = _invoiceApi.getMyInvoices();
   }
 
   void _reloadInvoices() =>
-      setState(() => _invoices = _invoiceApi.getPendingRentInvoices());
+      setState(() => _invoices = _invoiceApi.getMyInvoices());
+
+  Future<void> _openCheckout(List<PaymentInvoice> invoices) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentCheckoutScreen(invoices: invoices),
+      ),
+    );
+    if (changed == true) _reloadInvoices();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,75 +49,94 @@ class _HomeDashboardBodyState extends State<HomeDashboardBody> {
         children: [
           const AppHeader(),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Xin chào, ${AuthSession.fullName ?? 'Cư dân'}',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textDark,
+            child: RefreshIndicator(
+              onRefresh: () async {
+                _reloadInvoices();
+                await _invoices;
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Xin chào, ${AuthSession.fullName ?? 'Cư dân'}',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textDark,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Căn hộ A-1205 • Tòa tháp Sapphire',
-                    style: TextStyle(fontSize: 14, color: AppColors.secondary),
-                  ),
-                  const SizedBox(height: 24),
-
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.4,
-                    children: [
-                      _buildMenuCard(
-                        context,
-                        'Căn hộ',
-                        'Thông tin',
-                        Icons.apartment_rounded,
-                        const Color(0xFFE0E7FF),
-                        AppColors.primary,
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Chào mừng bạn trở lại EcoHome',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.secondary,
                       ),
-                      _buildMenuCard(
-                        context,
-                        'Hộ gia đình',
-                        'Thành viên',
-                        Icons.groups_rounded,
-                        const Color(0xFFDCFCE7),
-                        AppColors.tertiary,
-                      ),
-                      _buildMenuCard(
-                        context,
-                        'Báo cáo sự cố',
-                        'Gửi yêu cầu',
-                        Icons.report_problem_rounded,
-                        const Color(0xFFFFE4E6),
-                        Colors.redAccent,
-                      ),
-                      _buildMenuCard(
-                        context,
-                        'Dịch vụ',
-                        'Tiện ích',
-                        Icons.widgets_rounded,
-                        const Color(0xFFF1F5F9),
-                        const Color(0xFF1E293B),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  _RentInvoicesSection(
-                    invoices: _invoices,
-                    onRetry: _reloadInvoices,
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 24),
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      childAspectRatio: 1.4,
+                      children: [
+                        _menuCard(
+                          title: 'Căn hộ',
+                          subtitle: 'Thông tin',
+                          icon: Icons.apartment_rounded,
+                          background: const Color(0xFFE0E7FF),
+                          iconColor: AppColors.primary,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ApartmentDetailScreen(),
+                            ),
+                          ),
+                        ),
+                        _menuCard(
+                          title: 'Hộ gia đình',
+                          subtitle: 'Thành viên',
+                          icon: Icons.groups_rounded,
+                          background: const Color(0xFFDCFCE7),
+                          iconColor: AppColors.tertiary,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const HouseholdScreen(),
+                            ),
+                          ),
+                        ),
+                        _menuCard(
+                          title: 'Báo cáo sự cố',
+                          subtitle: 'Gửi yêu cầu',
+                          icon: Icons.report_problem_rounded,
+                          background: const Color(0xFFFFE4E6),
+                          iconColor: Colors.redAccent,
+                          onTap: () => widget.onTabChanged?.call(1),
+                        ),
+                        _menuCard(
+                          title: 'Dịch vụ',
+                          subtitle: 'Tiện ích',
+                          icon: Icons.widgets_rounded,
+                          background: const Color(0xFFF1F5F9),
+                          iconColor: const Color(0xFF1E293B),
+                          onTap: () => widget.onTabChanged?.call(2),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    _PaymentInvoicesSection(
+                      invoices: _invoices,
+                      onRetry: _reloadInvoices,
+                      onCheckout: _openCheckout,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -114,75 +145,64 @@ class _HomeDashboardBodyState extends State<HomeDashboardBody> {
     );
   }
 
-  Widget _buildMenuCard(
-    BuildContext context,
-    String title,
-    String subTitle,
-    IconData icon,
-    Color bgColor,
-    Color iconColor,
-  ) {
-    return GestureDetector(
-      onTap: () {
-        if (title == 'Căn hộ') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const ApartmentDetailScreen(),
-            ),
-          );
-        } else if (title == 'Hộ gia đình') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const HouseholdScreen()),
-          );
-        } else if (title == 'Báo cáo sự cố') {
-          widget.onTabChanged?.call(1);
-        } else if (title == 'Dịch vụ') {
-          widget.onTabChanged?.call(2);
-        }
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
-              child: Icon(icon, color: iconColor, size: 28),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            ),
-            Text(
-              subTitle,
-              style: const TextStyle(fontSize: 11, color: AppColors.secondary),
-            ),
-          ],
-        ),
+  Widget _menuCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color background,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(20),
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-    );
-  }
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: background,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 11, color: AppColors.secondary),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
-class _RentInvoicesSection extends StatelessWidget {
-  const _RentInvoicesSection({required this.invoices, required this.onRetry});
+class _PaymentInvoicesSection extends StatelessWidget {
+  const _PaymentInvoicesSection({
+    required this.invoices,
+    required this.onRetry,
+    required this.onCheckout,
+  });
 
-  final Future<List<RentInvoice>> invoices;
+  final Future<List<PaymentInvoice>> invoices;
   final VoidCallback onRetry;
+  final ValueChanged<List<PaymentInvoice>> onCheckout;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -202,11 +222,11 @@ class _RentInvoicesSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Hóa đơn cần thanh toán',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          'HÓA ĐƠN CỦA BẠN',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 14),
-        FutureBuilder<List<RentInvoice>>(
+        FutureBuilder<List<PaymentInvoice>>(
           future: invoices,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -228,25 +248,63 @@ class _RentInvoicesSection extends StatelessWidget {
                 ],
               );
             }
-            final items = snapshot.data ?? const [];
+            final items = (snapshot.data ?? const <PaymentInvoice>[])
+                .where((item) => item.isOutstanding)
+                .toList();
             if (items.isEmpty) {
               return const Row(
                 children: [
                   Icon(Icons.check_circle_outline, color: Colors.green),
                   SizedBox(width: 10),
-                  Expanded(child: Text('Không có tiền thuê cần thanh toán.')),
+                  Expanded(child: Text('Không có hóa đơn cần thanh toán.')),
                 ],
               );
             }
+            final payable = items.where((item) => item.canCheckout).toList();
+            final total = items.fold<double>(
+              0,
+              (sum, item) => sum + item.amount,
+            );
             return Column(
-              children: items
-                  .map(
-                    (invoice) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _RentInvoiceCard(invoice: invoice),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('${items.length} khoản chưa hoàn tất'),
+                    Text(
+                      _money(total),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
                     ),
-                  )
-                  .toList(),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ...items.map(
+                  (invoice) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _PaymentInvoiceCard(invoice: invoice),
+                  ),
+                ),
+                if (payable.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    height: 46,
+                    child: ElevatedButton.icon(
+                      onPressed: () => onCheckout(payable),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: const Icon(Icons.payment_rounded),
+                      label: Text('Thanh toán ${payable.length} hóa đơn'),
+                    ),
+                  ),
+                ],
+              ],
             );
           },
         ),
@@ -255,35 +313,40 @@ class _RentInvoicesSection extends StatelessWidget {
   );
 }
 
-class _RentInvoiceCard extends StatelessWidget {
-  const _RentInvoiceCard({required this.invoice});
+class _PaymentInvoiceCard extends StatelessWidget {
+  const _PaymentInvoiceCard({required this.invoice});
 
-  final RentInvoice invoice;
+  final PaymentInvoice invoice;
 
   @override
   Widget build(BuildContext context) {
     final deadline = DateFormat('dd/MM/yyyy').format(invoice.deadline);
-    final remaining = invoice.daysRemaining == 0
-        ? 'Hạn chót hôm nay'
-        : 'Còn ${invoice.daysRemaining} ngày';
+    final isOverdue = invoice.status == PaymentInvoiceStatus.overdue;
+    final color = isOverdue ? Colors.redAccent : AppColors.primary;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBFA),
+        color: isOverdue ? const Color(0xFFFFFBFA) : const Color(0xFFF8FAFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFEE2E2)),
+        border: Border.all(
+          color: isOverdue ? const Color(0xFFFEE2E2) : AppColors.borderGray,
+        ),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFFFEE2E2),
+              color: isOverdue
+                  ? const Color(0xFFFEE2E2)
+                  : const Color(0xFFE0E7FF),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.receipt_long_rounded,
-              color: Colors.redAccent,
+            child: Icon(
+              invoice.type == PaymentInvoiceType.rent
+                  ? Icons.apartment_rounded
+                  : Icons.cleaning_services_rounded,
+              color: color,
             ),
           ),
           const SizedBox(width: 12),
@@ -292,18 +355,21 @@ class _RentInvoiceCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Tiền thuê phòng ${invoice.roomNumber}',
+                  invoice.title,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  '$remaining • Hạn $deadline',
-                  style: const TextStyle(fontSize: 12, color: Colors.redAccent),
+                  '${invoice.roomNumber == null ? '' : 'Căn ${invoice.roomNumber} • '}Hạn $deadline',
+                  style: TextStyle(fontSize: 12, color: color),
                 ),
+                const SizedBox(height: 3),
+                _StatusLabel(status: invoice.status),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           Text(
-            '${NumberFormat('#,##0', 'vi_VN').format(invoice.amount)} đ',
+            _money(invoice.amount),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
         ],
@@ -311,3 +377,32 @@ class _RentInvoiceCard extends StatelessWidget {
     );
   }
 }
+
+class _StatusLabel extends StatelessWidget {
+  const _StatusLabel({required this.status});
+
+  final PaymentInvoiceStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (status) {
+      PaymentInvoiceStatus.awaitingBankTransfer => (
+        'Chờ xác nhận chuyển khoản',
+        Colors.orange,
+      ),
+      PaymentInvoiceStatus.awaitingCashConfirmation => (
+        'Chờ thanh toán tại Ban quản lý',
+        Colors.orange,
+      ),
+      PaymentInvoiceStatus.overdue => ('Quá hạn', Colors.redAccent),
+      _ => ('Chưa thanh toán', AppColors.primary),
+    };
+    return Text(
+      label,
+      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+    );
+  }
+}
+
+String _money(double value) =>
+    '${NumberFormat('#,##0', 'vi_VN').format(value)} đ';
