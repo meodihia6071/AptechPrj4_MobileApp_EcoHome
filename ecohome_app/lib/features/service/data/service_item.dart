@@ -24,9 +24,15 @@ class ServiceOverview {
         'Chưa có mô tả dịch vụ.',
       ),
       dailyPrice:
-          double.tryParse(json['price']?.toString() ?? '') ?? 0,
+          double.tryParse(
+            json['price']?.toString() ?? '',
+          ) ??
+          0,
       monthlyPrice:
-          double.tryParse(json['monthlyPrice']?.toString() ?? '') ?? 0,
+          double.tryParse(
+            json['monthlyPrice']?.toString() ?? '',
+          ) ??
+          0,
     );
   }
 
@@ -67,12 +73,26 @@ class ServiceBooking {
   bool get isClosed => status == 2;
   bool get isMonthly => bookingType == 1;
 
+  int get monthCount {
+    if (!isMonthly || startDate == null || endDate == null)
+      return 1;
+
+    final exclusiveEnd = endDate!.add(
+      const Duration(days: 1),
+    );
+    final months =
+        (exclusiveEnd.year - startDate!.year) * 12 +
+        exclusiveEnd.month -
+        startDate!.month;
+    return months < 1 ? 1 : months;
+  }
+
   String get statusLabel {
     switch (status) {
       case 0:
         return 'Đang chờ xác nhận';
       case 1:
-        return 'Đang sử dụng';
+        return 'Dịch vụ đang được sử dụng';
       case 2:
         return 'Đã hoàn thành';
       default:
@@ -81,7 +101,9 @@ class ServiceBooking {
   }
 
   String get bookingTypeLabel {
-    return isMonthly ? 'Gói theo tháng' : 'Gói theo ngày';
+    return isMonthly
+        ? 'Gói theo tháng ($monthCount tháng)'
+        : 'Gói theo ngày';
   }
 
   factory ServiceBooking.fromJson(
@@ -98,9 +120,13 @@ class ServiceBooking {
         json['endDate']?.toString() ?? '',
       ),
       status:
-          int.tryParse(json['status']?.toString() ?? '') ?? 0,
+          int.tryParse(json['status']?.toString() ?? '') ??
+          0,
       bookingType:
-          int.tryParse(json['bookingType']?.toString() ?? '') ?? 0,
+          int.tryParse(
+            json['bookingType']?.toString() ?? '',
+          ) ??
+          0,
       modifiedDate: DateTime.tryParse(
         json['modifiedDate']?.toString() ?? '',
       ),
@@ -146,6 +172,7 @@ class ServiceScreenData {
 class ServiceRegistration {
   const ServiceRegistration({
     required this.bookingType,
+    required this.apartmentId,
     required this.startDate,
     required this.endDate,
     required this.amount,
@@ -153,6 +180,7 @@ class ServiceRegistration {
   });
 
   final int bookingType;
+  final String apartmentId;
   final DateTime startDate;
   final DateTime endDate;
   final double amount;

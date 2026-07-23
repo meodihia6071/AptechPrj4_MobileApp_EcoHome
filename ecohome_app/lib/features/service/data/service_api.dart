@@ -8,8 +8,7 @@ import '../../auth/data/auth_session.dart';
 import 'service_item.dart';
 
 class ServiceApi {
-  ServiceApi({http.Client? client})
-      : _client = client ?? http.Client();
+  ServiceApi({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
 
@@ -18,10 +17,7 @@ class ServiceApi {
   Future<ServiceScreenData> getServices() async {
     final residentId = await _currentResidentId();
 
-    final responses = await Future.wait([
-      _get('/Services'),
-      _get('/Bookings'),
-    ]);
+    final responses = await Future.wait([_get('/Services'), _get('/Bookings')]);
 
     final services = _asList(responses[0])
         .map(ServiceOverview.fromJson)
@@ -29,8 +25,7 @@ class ServiceApi {
         .toList();
 
     final servicesById = <String, ServiceOverview>{
-      for (final service in services)
-        service.serviceId.toLowerCase(): service,
+      for (final service in services) service.serviceId.toLowerCase(): service,
     };
 
     final bookingsById = <String, ServiceBooking>{};
@@ -40,8 +35,7 @@ class ServiceApi {
 
       if (booking.bookingId.isEmpty ||
           booking.serviceId.isEmpty ||
-          booking.residentId.toLowerCase() !=
-              residentId.toLowerCase() ||
+          booking.residentId.toLowerCase() != residentId.toLowerCase() ||
           !booking.isActive) {
         continue;
       }
@@ -52,14 +46,10 @@ class ServiceApi {
     final activeBookings = bookingsById.values.toList()
       ..sort((first, second) {
         final firstDate =
-            first.modifiedDate ??
-            first.startDate ??
-            DateTime(1970);
+            first.modifiedDate ?? first.startDate ?? DateTime(1970);
 
         final secondDate =
-            second.modifiedDate ??
-            second.startDate ??
-            DateTime(1970);
+            second.modifiedDate ?? second.startDate ?? DateTime(1970);
 
         return secondDate.compareTo(firstDate);
       });
@@ -68,46 +58,33 @@ class ServiceApi {
     final activeServiceIds = <String>{};
 
     for (final booking in activeBookings) {
-      final service =
-          servicesById[booking.serviceId.toLowerCase()];
+      final service = servicesById[booking.serviceId.toLowerCase()];
 
       if (service == null) {
         continue;
       }
 
-      registered.add(
-        RegisteredServiceItem(
-          service: service,
-          booking: booking,
-        ),
-      );
+      registered.add(RegisteredServiceItem(service: service, booking: booking));
 
-      activeServiceIds.add(
-        service.serviceId.toLowerCase(),
-      );
+      activeServiceIds.add(service.serviceId.toLowerCase());
     }
 
-    final available = services
-        .where(
-          (service) => !activeServiceIds.contains(
-            service.serviceId.toLowerCase(),
-          ),
-        )
-        .toList()
-      ..sort(
-        (first, second) =>
-            first.name.toLowerCase().compareTo(
-                  second.name.toLowerCase(),
-                ),
-      );
+    final available =
+        services
+            .where(
+              (service) =>
+                  !activeServiceIds.contains(service.serviceId.toLowerCase()),
+            )
+            .toList()
+          ..sort(
+            (first, second) =>
+                first.name.toLowerCase().compareTo(second.name.toLowerCase()),
+          );
 
-    return ServiceScreenData(
-      registered: registered,
-      available: available,
-    );
+    return ServiceScreenData(registered: registered, available: available);
   }
 
-  Future<void> registerAndSubmitPayment({
+  Future<void> registerService({
     required ServiceOverview service,
     required ServiceRegistration registration,
   }) async {
@@ -116,12 +93,8 @@ class ServiceApi {
         '${residentId.toLowerCase()}:${service.serviceId.toLowerCase()}';
 
     if (!_registrationLocks.add(lockKey)) {
-      throw const ApiException(
-        'Yêu cầu đăng ký đang được xử lý.',
-      );
+      throw const ApiException('Yêu cầu đăng ký đang được xử lý.');
     }
-
-    String? bookingId;
 
     try {
       final data = await getServices();
@@ -133,70 +106,30 @@ class ServiceApi {
       );
 
       if (alreadyRegistered) {
-        throw const ApiException(
-          'Dịch vụ này đã có đăng ký đang hoạt động.',
-        );
+        throw const ApiException('Dịch vụ này đã có đăng ký đang hoạt động.');
       }
 
       final now = DateTime.now();
       final nowIso = now.toIso8601String();
 
-      final bookingResponse = await _post(
-        '/Bookings',
-        {
-          'residentId': residentId,
-          'serviceId': service.serviceId,
-          'startDate':
-              registration.startDate.toIso8601String(),
-          'endDate':
-              registration.endDate.toIso8601String(),
-          'status': 0,
-          'bookingType': registration.bookingType,
-          'createdDate': nowIso,
-          'modifiedDate': nowIso,
-          'isDeleted': false,
-        },
-      );
+      final bookingResponse = await _post('/Bookings', {
+        'residentId': residentId,
+        'serviceId': service.serviceId,
+        'apartmentId': registration.apartmentId,
+        'startDate': registration.startDate.toIso8601String(),
+        'endDate': registration.endDate.toIso8601String(),
+        'status': 0,
+        'bookingType': registration.bookingType,
+        'createdDate': nowIso,
+        'modifiedDate': nowIso,
+        'isDeleted': false,
+      });
 
-      bookingId = _extractGuid(bookingResponse);
+      final bookingId = _extractGuid(bookingResponse);
 
       if (bookingId.isEmpty) {
-        throw const ApiException(
-          'Backend không trả về mã đăng ký dịch vụ.',
-        );
+        throw const ApiException('Backend không trả về mã đăng ký dịch vụ.');
       }
-
-      await _post(
-        '/Payments',
-        {
-          'residentId': residentId,
-          'contractId': null,
-          'bookingId': bookingId,
-          'title': 'Thanh toán dịch vụ ${service.name}',
-          'description':
-              'Chờ xác nhận VietQR | '
-              'Nội dung: ${registration.transferContent}',
-          'amount': registration.amount,
-          'paymentDate': nowIso,
-          'paymentDeadline':
-              now.add(const Duration(days: 1)).toIso8601String(),
-          'paymentStatus': 0,
-          'paymentMethod': 1,
-          'createdDate': nowIso,
-          'modifiedDate': nowIso,
-          'isDeleted': false,
-        },
-      );
-    } catch (error) {
-      if (bookingId != null && bookingId.isNotEmpty) {
-        try {
-          await _post('/Bookings/delete', [bookingId]);
-        } catch (_) {
-          // Giữ nguyên lỗi gốc.
-        }
-      }
-
-      rethrow;
     } finally {
       _registrationLocks.remove(lockKey);
     }
@@ -204,22 +137,16 @@ class ServiceApi {
 
   Future<void> cancelBooking(String bookingId) async {
     if (bookingId.trim().isEmpty) {
-      throw const ApiException(
-        'Không tìm thấy mã đăng ký dịch vụ.',
-      );
+      throw const ApiException('Không tìm thấy mã đăng ký dịch vụ.');
     }
 
-    await _post(
-      '/Bookings/delete',
-      [bookingId],
-    );
+    await _post('/Bookings/delete', [bookingId]);
   }
 
   Future<String> _currentResidentId() async {
     final sessionResidentId = AuthSession.residentId;
 
-    if (sessionResidentId != null &&
-        sessionResidentId.isNotEmpty) {
+    if (sessionResidentId != null && sessionResidentId.isNotEmpty) {
       return sessionResidentId;
     }
 
@@ -236,21 +163,15 @@ class ServiceApi {
     }
 
     final response = _asMap(
-      await _post(
-        '/Residents/filter',
-        {
-          'conditions': [
-            {
-              'key': 'AccountId',
-              'guidValue': accountId,
-            },
-          ],
-          'sortName': 'ModifiedDate',
-          'sortMethod': 'DESC',
-          'page': 0,
-          'limit': 20,
-        },
-      ),
+      await _post('/Residents/filter', {
+        'conditions': [
+          {'key': 'AccountId', 'guidValue': accountId},
+        ],
+        'sortName': 'ModifiedDate',
+        'sortMethod': 'DESC',
+        'page': 0,
+        'limit': 20,
+      }),
     );
 
     final residents = _asList(response['results']);
@@ -277,10 +198,7 @@ class ServiceApi {
     );
   }
 
-  Future<dynamic> _post(
-    String path,
-    dynamic body,
-  ) {
+  Future<dynamic> _post(String path, dynamic body) {
     return _request(
       () => _client.post(
         Uri.parse('${ApiConfig.baseUrl}$path'),
@@ -290,16 +208,11 @@ class ServiceApi {
     );
   }
 
-  Future<dynamic> _request(
-    Future<http.Response> Function() request,
-  ) async {
+  Future<dynamic> _request(Future<http.Response> Function() request) async {
     try {
-      final response = await request().timeout(
-        const Duration(seconds: 20),
-      );
+      final response = await request().timeout(const Duration(seconds: 20));
 
-      if (response.statusCode < 200 ||
-          response.statusCode >= 300) {
+      if (response.statusCode < 200 || response.statusCode >= 300) {
         throw ApiException(_errorMessage(response));
       }
 
@@ -319,9 +232,7 @@ class ServiceApi {
         rethrow;
       }
 
-      throw const ApiException(
-        'Không thể kết nối máy chủ.',
-      );
+      throw const ApiException('Không thể kết nối máy chủ.');
     }
   }
 
@@ -331,14 +242,8 @@ class ServiceApi {
     }
 
     if (value is Map) {
-      for (final key in const [
-        'bookingId',
-        'id',
-        'value',
-      ]) {
-        final result =
-            value[key]?.toString().replaceAll('"', '').trim() ??
-                '';
+      for (final key in const ['bookingId', 'id', 'value']) {
+        final result = value[key]?.toString().replaceAll('"', '').trim() ?? '';
 
         if (result.isNotEmpty) {
           return result;
@@ -346,11 +251,7 @@ class ServiceApi {
       }
     }
 
-    return value
-            ?.toString()
-            .replaceAll('"', '')
-            .trim() ??
-        '';
+    return value?.toString().replaceAll('"', '').trim() ?? '';
   }
 
   String _errorMessage(http.Response response) {
@@ -367,8 +268,7 @@ class ServiceApi {
     try {
       final decoded = jsonDecode(body);
 
-      if (decoded is Map &&
-          decoded['message'] != null) {
+      if (decoded is Map && decoded['message'] != null) {
         return decoded['message'].toString();
       }
 
@@ -381,11 +281,10 @@ class ServiceApi {
   }
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        if (AuthSession.token != null)
-          'Authorization':
-              'Bearer ${AuthSession.token}',
-      };
+    'Content-Type': 'application/json',
+    if (AuthSession.token != null)
+      'Authorization': 'Bearer ${AuthSession.token}',
+  };
 
   Map<String, dynamic> _asMap(dynamic value) {
     return value is Map
@@ -402,8 +301,7 @@ class ServiceApi {
       } else if (value['results'] != null) {
         raw = value['results'];
 
-        if (raw is Map &&
-            raw[r'$values'] is List) {
+        if (raw is Map && raw[r'$values'] is List) {
           raw = raw[r'$values'];
         }
       }
@@ -415,10 +313,7 @@ class ServiceApi {
 
     return raw
         .whereType<Map>()
-        .map(
-          (item) =>
-              Map<String, dynamic>.from(item),
-        )
+        .map((item) => Map<String, dynamic>.from(item))
         .toList();
   }
 }

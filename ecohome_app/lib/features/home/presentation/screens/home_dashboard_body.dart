@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -11,9 +12,14 @@ import '../../../payment/data/payment_invoice.dart';
 import '../../../payment/presentation/screens/payment_checkout_screen.dart';
 
 class HomeDashboardBody extends StatefulWidget {
-  const HomeDashboardBody({super.key, this.onTabChanged});
+  const HomeDashboardBody({
+    super.key,
+    this.onTabChanged,
+    this.refreshListenable,
+  });
 
   final Function(int)? onTabChanged;
+  final ValueListenable<int>? refreshListenable;
 
   @override
   State<HomeDashboardBody> createState() => _HomeDashboardBodyState();
@@ -27,6 +33,13 @@ class _HomeDashboardBodyState extends State<HomeDashboardBody> {
   void initState() {
     super.initState();
     _invoices = _invoiceApi.getMyInvoices();
+    widget.refreshListenable?.addListener(_reloadInvoices);
+  }
+
+  @override
+  void dispose() {
+    widget.refreshListenable?.removeListener(_reloadInvoices);
+    super.dispose();
   }
 
   void _reloadInvoices() =>

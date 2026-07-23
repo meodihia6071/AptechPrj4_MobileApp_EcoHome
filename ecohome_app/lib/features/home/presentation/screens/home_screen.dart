@@ -13,11 +13,51 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _selectedIndex = 0;
+  final ValueNotifier<int> _homeRefresh = ValueNotifier(0);
+  final ValueNotifier<int> _serviceRefresh = ValueNotifier(0);
 
   final GlobalKey<NavigatorState> _homeNavigatorKey =
       GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _homeRefresh.dispose();
+    _serviceRefresh.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshSelectedTab();
+    }
+  }
+
+  void _refreshSelectedTab() {
+    if (_selectedIndex == 0) {
+      _homeRefresh.value++;
+    } else if (_selectedIndex == 2) {
+      _serviceRefresh.value++;
+    }
+  }
+
+  void _selectTab(int index) {
+    setState(() => _selectedIndex = index);
+    if (index == 0) {
+      _homeRefresh.value++;
+    } else if (index == 2) {
+      _serviceRefresh.value++;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,17 +67,16 @@ class _HomeScreenState extends State<HomeScreen> {
         onGenerateRoute: (settings) {
           return MaterialPageRoute(
             builder: (context) => HomeDashboardBody(
+              refreshListenable: _homeRefresh,
               onTabChanged: (index) {
-                setState(() {
-                  _selectedIndex = index;
-                });
+                _selectTab(index);
               },
             ),
           );
         },
       ),
       const IncidentScreen(),
-      const ServiceScreen(),
+      ServiceScreen(refreshListenable: _serviceRefresh),
       const AccountScreen(),
     ];
 
@@ -70,10 +109,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       (route) => route.isFirst,
                     );
                   }
+                  _homeRefresh.value++;
                 } else {
-                  setState(() {
-                    _selectedIndex = 0;
-                  });
+                  _selectTab(0);
                 }
               },
             ),
@@ -81,19 +119,19 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icons.report_problem_rounded,
               label: 'Báo cáo',
               isSelected: _selectedIndex == 1,
-              onTap: () => setState(() => _selectedIndex = 1),
+              onTap: () => _selectTab(1),
             ),
             CustomBottomNavItem(
               icon: Icons.widgets_rounded,
               label: 'Dịch vụ',
               isSelected: _selectedIndex == 2,
-              onTap: () => setState(() => _selectedIndex = 2),
+              onTap: () => _selectTab(2),
             ),
             CustomBottomNavItem(
               icon: Icons.person_rounded,
               label: 'Tài khoản',
               isSelected: _selectedIndex == 3,
-              onTap: () => setState(() => _selectedIndex = 3),
+              onTap: () => _selectTab(3),
             ),
           ],
         ),

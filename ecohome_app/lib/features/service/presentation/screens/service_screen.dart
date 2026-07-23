@@ -1,17 +1,22 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:ecohome_app/core/constants/app_colors.dart';
 import 'package:ecohome_app/core/constants/vietqr_config.dart';
 import 'package:ecohome_app/shared/widgets/app_header.dart';
 import 'package:ecohome_app/shared/widgets/service_card.dart';
 
 import '../../../auth/data/auth_api.dart';
+import '../../../apartment/data/apartment_api.dart';
+import '../../../apartment/data/apartment_info.dart';
 import '../../data/service_api.dart';
 import '../../data/service_item.dart';
 
 class ServiceScreen extends StatefulWidget {
-  const ServiceScreen({super.key});
+  const ServiceScreen({super.key, this.refreshListenable});
+
+  final ValueListenable<int>? refreshListenable;
 
   @override
   State<ServiceScreen> createState() =>
@@ -29,6 +34,13 @@ class _ServiceScreenState extends State<ServiceScreen> {
   void initState() {
     super.initState();
     _servicesFuture = _api.getServices();
+    widget.refreshListenable?.addListener(_reload);
+  }
+
+  @override
+  void dispose() {
+    widget.refreshListenable?.removeListener(_reload);
+    super.dispose();
   }
 
   void _reload() {
@@ -50,18 +62,43 @@ class _ServiceScreenState extends State<ServiceScreen> {
   Future<void> _openRegistration(
     ServiceOverview service,
   ) async {
+    late final List<ApartmentInfo> apartments;
+    try {
+      apartments = await ApartmentApi().getApartments();
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    if (apartments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Tài khoản chưa được Ban quản lý gắn với căn hộ.',
+          ),
+        ),
+      );
+      return;
+    }
+
     final registration =
         await showModalBottomSheet<ServiceRegistration>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      barrierColor:
-          AppColors.primary.withValues(alpha: 0.20),
-      builder: (context) => _RegistrationSheet(
-        service: service,
-      ),
-    );
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          backgroundColor: Colors.transparent,
+          barrierColor: AppColors.primary.withValues(
+            alpha: 0.20,
+          ),
+          builder: (context) => _RegistrationSheet(
+            service: service,
+            apartments: apartments,
+          ),
+        );
 
     if (registration == null || !mounted) {
       return;
@@ -72,7 +109,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
     });
 
     try {
-      await _api.registerAndSubmitPayment(
+      await _api.registerService(
         service: service,
         registration: registration,
       );
@@ -113,13 +150,26 @@ class _ServiceScreenState extends State<ServiceScreen> {
   Future<void> _confirmCancel(
     RegisteredServiceItem item,
   ) async {
+    if (!item.booking.isPending) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Dịch vụ đang được sử dụng nên không thể hủy.',
+          ),
+        ),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
-      barrierColor:
-          AppColors.primary.withValues(alpha: 0.18),
-      builder: (context) => _CancelServiceDialog(
-        item: item,
+      barrierColor: AppColors.primary.withValues(
+        alpha: 0.18,
       ),
+      builder: (context) =>
+          _CancelServiceDialog(item: item),
     );
 
     if (confirmed != true || !mounted) {
@@ -131,9 +181,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
     });
 
     try {
-      await _api.cancelBooking(
-        item.booking.bookingId,
-      );
+      await _api.cancelBooking(item.booking.bookingId);
 
       final refreshed = _api.getServices();
 
@@ -171,8 +219,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
   }) {
     showDialog<void>(
       context: context,
-      barrierColor:
-          AppColors.primary.withValues(alpha: 0.18),
+      barrierColor: AppColors.primary.withValues(
+        alpha: 0.18,
+      ),
       builder: (context) => _ServiceDetailDialog(
         service: service,
         booking: booking,
@@ -184,17 +233,14 @@ class _ServiceScreenState extends State<ServiceScreen> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const AppHeader(),
           const SizedBox(height: 22),
           const Padding(
-            padding:
-                EdgeInsets.symmetric(horizontal: 20),
+            padding: EdgeInsets.symmetric(horizontal: 20),
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Quản lý dịch vụ',
@@ -240,7 +286,8 @@ class _ServiceScreenState extends State<ServiceScreen> {
                 }
 
                 final data =
-                    snapshot.data ?? ServiceScreenData.empty;
+                    snapshot.data ??
+                    ServiceScreenData.empty;
 
                 final itemCount = _activeTabIndex == 0
                     ? data.registered.length
@@ -249,8 +296,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
                 return Column(
                   children: [
                     Padding(
-                      padding:
-                          const EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                       ),
                       child: _ServiceTabBar(
@@ -285,22 +331,22 @@ class _ServiceScreenState extends State<ServiceScreen> {
                                     const AlwaysScrollableScrollPhysics(),
                                 padding:
                                     const EdgeInsets.fromLTRB(
-                                  20,
-                                  0,
-                                  20,
-                                  24,
-                                ),
+                                      20,
+                                      0,
+                                      20,
+                                      24,
+                                    ),
                                 itemCount: itemCount,
                                 separatorBuilder:
                                     (context, index) =>
                                         const SizedBox(
-                                  height: 15,
-                                ),
-                                itemBuilder:
-                                    (context, index) {
-                                  if (_activeTabIndex == 0) {
-                                    final item =
-                                        data.registered[index];
+                                          height: 15,
+                                        ),
+                                itemBuilder: (context, index) {
+                                  if (_activeTabIndex ==
+                                      0) {
+                                    final item = data
+                                        .registered[index];
 
                                     return KeyedSubtree(
                                       key: ValueKey(
@@ -309,8 +355,8 @@ class _ServiceScreenState extends State<ServiceScreen> {
                                       ),
                                       child:
                                           _buildRegisteredCard(
-                                        item,
-                                      ),
+                                            item,
+                                          ),
                                     );
                                   }
 
@@ -324,8 +370,8 @@ class _ServiceScreenState extends State<ServiceScreen> {
                                     ),
                                     child:
                                         _buildAvailableCard(
-                                      service,
-                                    ),
+                                          service,
+                                        ),
                                   );
                                 },
                               ),
@@ -341,39 +387,33 @@ class _ServiceScreenState extends State<ServiceScreen> {
     );
   }
 
-  Widget _buildAvailableCard(
-    ServiceOverview service,
-  ) {
+  Widget _buildAvailableCard(ServiceOverview service) {
     return ServiceCard(
       icon: _iconFor(service.name),
       title: service.name,
       subtitle: service.description,
       statusText: 'Sẵn sàng đăng ký',
-      statusBackgroundColor:
-          AppColors.primary.withValues(alpha: 0.08),
+      statusBackgroundColor: AppColors.primary.withValues(
+        alpha: 0.08,
+      ),
       statusTextColor: AppColors.primary,
       firstLabel: 'Giá theo ngày',
       firstValue: _formatPrice(service.dailyPrice),
       secondLabel: 'Giá theo tháng',
-      secondValue:
-          _formatPrice(service.monthlyPrice),
+      secondValue: _formatPrice(service.monthlyPrice),
       primaryActionText: 'Đăng ký',
       primaryActionIcon: Icons.add_rounded,
       onPrimaryPressed: _isSubmitting
           ? null
           : () => _openRegistration(service),
-      onDetailPressed: () =>
-          _showDetail(service),
+      onDetailPressed: () => _showDetail(service),
     );
   }
 
-  Widget _buildRegisteredCard(
-    RegisteredServiceItem item,
-  ) {
+  Widget _buildRegisteredCard(RegisteredServiceItem item) {
     final service = item.service;
     final booking = item.booking;
-    final statusStyle =
-        _bookingStatusStyle(booking);
+    final statusStyle = _bookingStatusStyle(booking);
 
     return ServiceCard(
       icon: _iconFor(service.name),
@@ -382,8 +422,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
           '${booking.bookingTypeLabel} • '
           '${_shortBookingId(booking.bookingId)}',
       statusText: booking.statusLabel,
-      statusBackgroundColor:
-          statusStyle.backgroundColor,
+      statusBackgroundColor: statusStyle.backgroundColor,
       statusTextColor: statusStyle.textColor,
       firstLabel: 'Thời gian sử dụng',
       firstValue: _formatDateRange(
@@ -393,32 +432,36 @@ class _ServiceScreenState extends State<ServiceScreen> {
       secondLabel: 'Phí đăng ký',
       secondValue: _formatPrice(
         booking.isMonthly
-            ? service.monthlyPrice
+            ? service.monthlyPrice * booking.monthCount
             : service.dailyPrice,
       ),
       primaryActionText: booking.isPending
           ? 'Hủy yêu cầu'
-          : 'Hủy đăng ký',
-      primaryActionIcon: Icons.undo_rounded,
-      primaryActionForegroundColor:
-          const Color(0xFFBE123C),
-      primaryActionBackgroundColor:
-          const Color(0xFFFFF1F2),
-      primaryActionBorderColor:
-          const Color(0xFFFFCDD5),
-      onPrimaryPressed: _isSubmitting
-          ? null
-          : () => _confirmCancel(item),
-      onDetailPressed: () => _showDetail(
-        service,
-        booking: booking,
-      ),
+          : 'Đang được sử dụng',
+      primaryActionIcon: booking.isPending
+          ? Icons.undo_rounded
+          : Icons.check_circle_outline_rounded,
+      primaryActionForegroundColor: booking.isPending
+          ? const Color(0xFFBE123C)
+          : const Color(0xFF15803D),
+      primaryActionBackgroundColor: booking.isPending
+          ? const Color(0xFFFFF1F2)
+          : const Color(0xFFF0FDF4),
+      primaryActionBorderColor: booking.isPending
+          ? const Color(0xFFFFCDD5)
+          : const Color(0xFFBBF7D0),
+      onPrimaryPressed: booking.isPending && !_isSubmitting
+          ? () => _confirmCancel(item)
+          : null,
+      onDetailPressed: () =>
+          _showDetail(service, booking: booking),
     );
   }
 
   static String _shortBookingId(String bookingId) {
-    final normalized =
-        bookingId.replaceAll('-', '').toUpperCase();
+    final normalized = bookingId
+        .replaceAll('-', '')
+        .toUpperCase();
 
     if (normalized.isEmpty) {
       return 'BOOKING';
@@ -528,9 +571,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
     final number = value.round().toString();
     final buffer = StringBuffer();
 
-    for (var index = 0;
-        index < number.length;
-        index++) {
+    for (var index = 0; index < number.length; index++) {
       final remaining = number.length - index;
 
       buffer.write(number[index]);
@@ -540,7 +581,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       }
     }
 
-    return '${buffer}đ';
+    return '$bufferđ';
   }
 
   static String _twoDigits(int value) {
@@ -606,9 +647,7 @@ class _ServiceTabItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Material(
-        color: selected
-            ? Colors.white
-            : Colors.transparent,
+        color: selected ? Colors.white : Colors.transparent,
         borderRadius: BorderRadius.circular(11),
         child: InkWell(
           onTap: onTap,
@@ -623,8 +662,9 @@ class _ServiceTabItem extends StatelessWidget {
               boxShadow: selected
                   ? [
                       BoxShadow(
-                        color: AppColors.primary
-                            .withValues(alpha: 0.07),
+                        color: AppColors.primary.withValues(
+                          alpha: 0.07,
+                        ),
                         blurRadius: 8,
                         offset: const Offset(0, 3),
                       ),
@@ -632,8 +672,7 @@ class _ServiceTabItem extends StatelessWidget {
                   : const [],
             ),
             child: Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Flexible(
                   child: Text(
@@ -662,8 +701,7 @@ class _ServiceTabItem extends StatelessWidget {
                             alpha: 0.10,
                           )
                         : const Color(0xFFE2E8F0),
-                    borderRadius:
-                        BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     count.toString(),
@@ -699,14 +737,8 @@ class _EmptyServiceList extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          28,
-          55,
-          28,
-          24,
-        ),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(28, 55, 28, 24),
         children: [
           Container(
             padding: const EdgeInsets.all(24),
@@ -726,15 +758,12 @@ class _EmptyServiceList extends StatelessWidget {
                     color: AppColors.primary.withValues(
                       alpha: 0.08,
                     ),
-                    borderRadius:
-                        BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Icon(
                     isRegisteredTab
-                        ? Icons
-                            .calendar_month_outlined
-                        : Icons
-                            .task_alt_rounded,
+                        ? Icons.calendar_month_outlined
+                        : Icons.task_alt_rounded,
                     color: AppColors.primary,
                     size: 30,
                   ),
@@ -772,13 +801,14 @@ class _EmptyServiceList extends StatelessWidget {
   }
 }
 
-
 class _RegistrationSheet extends StatefulWidget {
   const _RegistrationSheet({
     required this.service,
+    required this.apartments,
   });
 
   final ServiceOverview service;
+  final List<ApartmentInfo> apartments;
 
   @override
   State<_RegistrationSheet> createState() =>
@@ -789,11 +819,13 @@ class _RegistrationSheetState
     extends State<_RegistrationSheet> {
   int _step = 0;
   int _bookingType = 0;
+  int _monthCount = 1;
   DateTime _startDate = DateTime.now();
+  late String _apartmentId;
 
   double get _amount {
     return _bookingType == 1
-        ? widget.service.monthlyPrice
+        ? widget.service.monthlyPrice * _monthCount
         : widget.service.dailyPrice;
   }
 
@@ -806,14 +838,16 @@ class _RegistrationSheetState
       );
     }
 
-    final nextMonth = _startDate.month + 1;
+    final nextMonth = _startDate.month + _monthCount;
     final targetYear =
         _startDate.year + ((nextMonth - 1) ~/ 12);
     final targetMonth = ((nextMonth - 1) % 12) + 1;
-    final lastDay =
-        DateTime(targetYear, targetMonth + 1, 0).day;
-    final targetDay =
-        math.min(_startDate.day, lastDay);
+    final lastDay = DateTime(
+      targetYear,
+      targetMonth + 1,
+      0,
+    ).day;
+    final targetDay = math.min(_startDate.day, lastDay);
 
     return DateTime(
       targetYear,
@@ -837,8 +871,7 @@ class _RegistrationSheetState
     return 'ECOHOME $shortCode $timeCode';
   }
 
-  bool get _canUseDaily =>
-      widget.service.dailyPrice >= 0;
+  bool get _canUseDaily => widget.service.dailyPrice >= 0;
 
   bool get _canUseMonthly =>
       widget.service.monthlyPrice > 0;
@@ -846,6 +879,7 @@ class _RegistrationSheetState
   @override
   void initState() {
     super.initState();
+    _apartmentId = widget.apartments.first.apartmentId;
 
     if (widget.service.dailyPrice <= 0 &&
         widget.service.monthlyPrice > 0) {
@@ -864,11 +898,11 @@ class _RegistrationSheetState
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme:
-                Theme.of(context).colorScheme.copyWith(
-                      primary: AppColors.primary,
-                      secondary: AppColors.tertiary,
-                    ),
+            colorScheme: Theme.of(context).colorScheme
+                .copyWith(
+                  primary: AppColors.primary,
+                  secondary: AppColors.tertiary,
+                ),
           ),
           child: child!,
         );
@@ -883,20 +917,7 @@ class _RegistrationSheetState
   }
 
   void _continueToPayment() {
-    if (_amount > 0 && !VietQrConfig.isConfigured) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Chưa cấu hình tài khoản nhận tiền VietQR.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _step = 1;
-    });
+    _complete();
   }
 
   void _complete() {
@@ -904,6 +925,7 @@ class _RegistrationSheetState
       context,
       ServiceRegistration(
         bookingType: _bookingType,
+        apartmentId: _apartmentId,
         startDate: _startDate,
         endDate: _endDate,
         amount: _amount,
@@ -914,8 +936,9 @@ class _RegistrationSheetState
 
   @override
   Widget build(BuildContext context) {
-    final keyboardHeight =
-        MediaQuery.of(context).viewInsets.bottom;
+    final keyboardHeight = MediaQuery.of(
+      context,
+    ).viewInsets.bottom;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -945,8 +968,7 @@ class _RegistrationSheetState
                 margin: const EdgeInsets.only(top: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFFCBD5E1),
-                  borderRadius:
-                      BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
               _RegistrationHeader(
@@ -1026,6 +1048,145 @@ class _RegistrationSheetState
             ),
           ],
         ),
+        if (_bookingType == 1) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(
+                alpha: 0.05,
+              ),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: AppColors.primary.withValues(
+                  alpha: 0.14,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Số tháng đăng ký',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Có thể đăng ký từ 1 đến 12 tháng',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Giảm số tháng',
+                  onPressed: _monthCount > 1
+                      ? () => setState(() => _monthCount--)
+                      : null,
+                  icon: const Icon(
+                    Icons.remove_circle_outline,
+                  ),
+                  color: AppColors.primary,
+                ),
+                Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 54,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.borderGray,
+                    ),
+                  ),
+                  child: Text(
+                    '$_monthCount',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Tăng số tháng',
+                  onPressed: _monthCount < 12
+                      ? () => setState(() => _monthCount++)
+                      : null,
+                  icon: const Icon(
+                    Icons.add_circle_outline,
+                  ),
+                  color: AppColors.primary,
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 17),
+        const Text(
+          'Căn hộ sử dụng dịch vụ',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textDark,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          initialValue: _apartmentId,
+          isExpanded: true,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(
+              Icons.apartment_rounded,
+              color: AppColors.primary,
+            ),
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: const BorderSide(
+                color: AppColors.borderGray,
+              ),
+            ),
+          ),
+          items: widget.apartments
+              .map(
+                (apartment) => DropdownMenuItem(
+                  value: apartment.apartmentId,
+                  child: Text(
+                    'Căn ${apartment.roomNumber} • Tầng ${apartment.floor}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: widget.apartments.length == 1
+              ? null
+              : (value) {
+                  if (value != null) {
+                    setState(() => _apartmentId = value);
+                  }
+                },
+        ),
         const SizedBox(height: 17),
         const Text(
           'Ngày bắt đầu',
@@ -1062,8 +1223,9 @@ class _RegistrationSheetState
                       color: AppColors.primary.withValues(
                         alpha: 0.09,
                       ),
-                      borderRadius:
-                          BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(
+                        12,
+                      ),
                     ),
                     child: const Icon(
                       Icons.event_outlined,
@@ -1086,8 +1248,7 @@ class _RegistrationSheetState
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          _ServiceScreenState
-                              ._formatDateRange(
+                          _ServiceScreenState._formatDateRange(
                             _startDate,
                             _endDate,
                           ),
@@ -1113,7 +1274,7 @@ class _RegistrationSheetState
         _PaymentSummary(
           serviceName: widget.service.name,
           planName: _bookingType == 1
-              ? 'Gói theo tháng'
+              ? 'Gói theo tháng ($_monthCount tháng)'
               : 'Gói theo ngày',
           amount: _amount,
         ),
@@ -1122,17 +1283,10 @@ class _RegistrationSheetState
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: _continueToPayment,
-            icon: const Icon(
-              Icons.qr_code_2_rounded,
-              size: 19,
-            ),
-            label: Text(
-              _amount > 0
-                  ? 'Tiếp tục thanh toán'
-                  : 'Tiếp tục đăng ký',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+            icon: const Icon(Icons.send_rounded, size: 19),
+            label: const Text(
+              'Gửi đăng ký',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
@@ -1223,8 +1377,7 @@ class _RegistrationSheetState
                 width: 260,
                 height: 300,
                 fit: BoxFit.contain,
-                errorBuilder:
-                    (context, error, stackTrace) {
+                errorBuilder: (context, error, stackTrace) {
                   return const SizedBox(
                     width: 260,
                     height: 260,
@@ -1267,9 +1420,7 @@ class _RegistrationSheetState
           decoration: BoxDecoration(
             color: const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(17),
-            border: Border.all(
-              color: AppColors.borderGray,
-            ),
+            border: Border.all(color: AppColors.borderGray),
           ),
           child: Column(
             children: [
@@ -1310,8 +1461,7 @@ class _RegistrationSheetState
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Icon(
                 Icons.info_outline_rounded,
@@ -1385,17 +1535,10 @@ class _RegistrationHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(
-        16,
-        12,
-        16,
-        0,
-      ),
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(
-          alpha: 0.08,
-        ),
+        color: AppColors.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(19),
       ),
       child: Row(
@@ -1409,8 +1552,7 @@ class _RegistrationHeader extends StatelessWidget {
             ),
             child: Icon(
               step == 0
-                  ? Icons
-                      .miscellaneous_services_rounded
+                  ? Icons.miscellaneous_services_rounded
                   : Icons.qr_code_2_rounded,
               color: Colors.white,
               size: 23,
@@ -1419,8 +1561,7 @@ class _RegistrationHeader extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   step == 0
@@ -1451,10 +1592,7 @@ class _RegistrationHeader extends StatelessWidget {
               backgroundColor: Colors.white,
               foregroundColor: AppColors.secondary,
             ),
-            icon: const Icon(
-              Icons.close_rounded,
-              size: 20,
-            ),
+            icon: const Icon(Icons.close_rounded, size: 20),
           ),
         ],
       ),
@@ -1485,8 +1623,8 @@ class _PlanOption extends StatelessWidget {
   Widget build(BuildContext context) {
     final foreground = enabled
         ? (selected
-            ? AppColors.primary
-            : AppColors.textDark)
+              ? AppColors.primary
+              : AppColors.textDark)
         : const Color(0xFF94A3B8);
 
     return Material(
@@ -1509,23 +1647,16 @@ class _PlanOption extends StatelessWidget {
             ),
           ),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(
-                    icon,
-                    color: foreground,
-                    size: 21,
-                  ),
+                  Icon(icon, color: foreground, size: 21),
                   const Spacer(),
                   Icon(
                     selected
-                        ? Icons
-                            .radio_button_checked_rounded
-                        : Icons
-                            .radio_button_off_rounded,
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_off_rounded,
                     color: selected
                         ? AppColors.primary
                         : const Color(0xFFCBD5E1),
@@ -1587,9 +1718,7 @@ class _PaymentSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(
-          alpha: 0.06,
-        ),
+        color: AppColors.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(17),
       ),
       child: Column(
@@ -1608,9 +1737,7 @@ class _PaymentSummary extends StatelessWidget {
           ),
           _PaymentInfoRow(
             label: 'Tổng thanh toán',
-            value: _ServiceScreenState._formatPrice(
-              amount,
-            ),
+            value: _ServiceScreenState._formatPrice(amount),
             valueColor: AppColors.primary,
           ),
         ],
@@ -1633,11 +1760,9 @@ class _PaymentInfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 112,
@@ -1665,7 +1790,6 @@ class _PaymentInfoRow extends StatelessWidget {
     );
   }
 }
-
 
 class _ServiceDetailDialog extends StatelessWidget {
   const _ServiceDetailDialog({
@@ -1717,8 +1841,9 @@ class _ServiceDetailDialog extends StatelessWidget {
                       height: 48,
                       decoration: BoxDecoration(
                         color: AppColors.primary,
-                        borderRadius:
-                            BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(
+                          15,
+                        ),
                       ),
                       child: Icon(
                         _ServiceScreenState._iconFor(
@@ -1738,10 +1863,8 @@ class _ServiceDetailDialog extends StatelessWidget {
                             'Chi tiết dịch vụ',
                             style: TextStyle(
                               fontSize: 12.5,
-                              fontWeight:
-                                  FontWeight.w600,
-                              color:
-                                  AppColors.secondary,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.secondary,
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -1749,10 +1872,8 @@ class _ServiceDetailDialog extends StatelessWidget {
                             service.name,
                             style: const TextStyle(
                               fontSize: 18,
-                              fontWeight:
-                                  FontWeight.bold,
-                              color:
-                                  AppColors.textDark,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textDark,
                             ),
                           ),
                         ],
@@ -1790,12 +1911,12 @@ class _ServiceDetailDialog extends StatelessWidget {
                         icon: Icons.notes_rounded,
                         title: 'Mô tả dịch vụ',
                         content: service.description,
-                        backgroundColor:
-                            const Color(0xFFF8FAFC),
-                        iconBackgroundColor:
-                            AppColors.primary.withValues(
-                          alpha: 0.10,
+                        backgroundColor: const Color(
+                          0xFFF8FAFC,
                         ),
+                        iconBackgroundColor: AppColors
+                            .primary
+                            .withValues(alpha: 0.10),
                         iconColor: AppColors.primary,
                       ),
                       const SizedBox(height: 12),
@@ -1804,22 +1925,21 @@ class _ServiceDetailDialog extends StatelessWidget {
                           Expanded(
                             child: _PriceTile(
                               label: 'Theo ngày',
-                              value: _ServiceScreenState
-                                  ._formatPrice(
-                                service.dailyPrice,
-                              ),
-                              icon:
-                                  Icons.today_outlined,
+                              value:
+                                  _ServiceScreenState._formatPrice(
+                                    service.dailyPrice,
+                                  ),
+                              icon: Icons.today_outlined,
                             ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: _PriceTile(
                               label: 'Theo tháng',
-                              value: _ServiceScreenState
-                                  ._formatPrice(
-                                service.monthlyPrice,
-                              ),
+                              value:
+                                  _ServiceScreenState._formatPrice(
+                                    service.monthlyPrice,
+                                  ),
                               icon: Icons
                                   .calendar_month_outlined,
                             ),
@@ -1829,19 +1949,22 @@ class _ServiceDetailDialog extends StatelessWidget {
                       if (currentBooking != null) ...[
                         const SizedBox(height: 12),
                         _ServiceDetailSection(
-                          icon:
-                              Icons.event_available_outlined,
+                          icon: Icons
+                              .event_available_outlined,
                           title: 'Thông tin đăng ký',
                           content:
                               '${currentBooking.bookingTypeLabel}\n'
                               '${_ServiceScreenState._formatDateRange(currentBooking.startDate, currentBooking.endDate)}\n'
                               '${currentBooking.statusLabel}',
-                          backgroundColor:
-                              const Color(0xFFEFF6FF),
-                          iconBackgroundColor:
-                              const Color(0xFFDBEAFE),
-                          iconColor:
-                              const Color(0xFF1D4ED8),
+                          backgroundColor: const Color(
+                            0xFFEFF6FF,
+                          ),
+                          iconBackgroundColor: const Color(
+                            0xFFDBEAFE,
+                          ),
+                          iconColor: const Color(
+                            0xFF1D4ED8,
+                          ),
                         ),
                       ],
                       const SizedBox(height: 20),
@@ -1857,27 +1980,21 @@ class _ServiceDetailDialog extends StatelessWidget {
                           label: const Text(
                             'Đã hiểu',
                             style: TextStyle(
-                              fontWeight:
-                                  FontWeight.bold,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          style:
-                              ElevatedButton.styleFrom(
+                          style: ElevatedButton.styleFrom(
                             backgroundColor:
                                 AppColors.primary,
-                            foregroundColor:
-                                Colors.white,
+                            foregroundColor: Colors.white,
                             elevation: 0,
                             padding:
                                 const EdgeInsets.symmetric(
-                              vertical: 14,
-                            ),
-                            shape:
-                                RoundedRectangleBorder(
+                                  vertical: 14,
+                                ),
+                            shape: RoundedRectangleBorder(
                               borderRadius:
-                                  BorderRadius.circular(
-                                14,
-                              ),
+                                  BorderRadius.circular(14),
                             ),
                           ),
                         ),
@@ -1895,9 +2012,7 @@ class _ServiceDetailDialog extends StatelessWidget {
 }
 
 class _CancelServiceDialog extends StatelessWidget {
-  const _CancelServiceDialog({
-    required this.item,
-  });
+  const _CancelServiceDialog({required this.item});
 
   final RegisteredServiceItem item;
 
@@ -1913,9 +2028,7 @@ class _CancelServiceDialog extends StatelessWidget {
         vertical: 24,
       ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 440,
-        ),
+        constraints: const BoxConstraints(maxWidth: 440),
         child: Material(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
@@ -1930,8 +2043,7 @@ class _CancelServiceDialog extends StatelessWidget {
                   height: 58,
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF1F2),
-                    borderRadius:
-                        BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: const Icon(
                     Icons.undo_rounded,
@@ -1967,8 +2079,7 @@ class _CancelServiceDialog extends StatelessWidget {
                   padding: const EdgeInsets.all(13),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF8FAFC),
-                    borderRadius:
-                        BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(15),
                     border: Border.all(
                       color: AppColors.borderGray,
                     ),
@@ -1998,10 +2109,8 @@ class _CancelServiceDialog extends StatelessWidget {
                           service.name,
                           style: const TextStyle(
                             fontSize: 13,
-                            fontWeight:
-                                FontWeight.w700,
-                            color:
-                                AppColors.textDark,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textDark,
                           ),
                         ),
                       ),
@@ -2014,35 +2123,26 @@ class _CancelServiceDialog extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () =>
-                            Navigator.pop(
-                          context,
-                          false,
-                        ),
-                        style:
-                            OutlinedButton.styleFrom(
+                            Navigator.pop(context, false),
+                        style: OutlinedButton.styleFrom(
                           foregroundColor:
                               AppColors.secondary,
                           side: const BorderSide(
-                            color:
-                                Color(0xFFCBD5E1),
+                            color: Color(0xFFCBD5E1),
                           ),
                           padding:
                               const EdgeInsets.symmetric(
-                            vertical: 14,
-                          ),
-                          shape:
-                              RoundedRectangleBorder(
+                                vertical: 14,
+                              ),
+                          shape: RoundedRectangleBorder(
                             borderRadius:
-                                BorderRadius.circular(
-                              14,
-                            ),
+                                BorderRadius.circular(14),
                           ),
                         ),
                         child: const Text(
                           'Giữ dịch vụ',
                           style: TextStyle(
-                            fontWeight:
-                                FontWeight.w600,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -2051,10 +2151,7 @@ class _CancelServiceDialog extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () =>
-                            Navigator.pop(
-                          context,
-                          true,
-                        ),
+                            Navigator.pop(context, true),
                         icon: const Icon(
                           Icons.undo_rounded,
                           size: 18,
@@ -2062,27 +2159,22 @@ class _CancelServiceDialog extends StatelessWidget {
                         label: const Text(
                           'Xác nhận hủy',
                           style: TextStyle(
-                            fontWeight:
-                                FontWeight.bold,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        style:
-                            ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color(0xFFBE123C),
-                          foregroundColor:
-                              Colors.white,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(
+                            0xFFBE123C,
+                          ),
+                          foregroundColor: Colors.white,
                           elevation: 0,
                           padding:
                               const EdgeInsets.symmetric(
-                            vertical: 14,
-                          ),
-                          shape:
-                              RoundedRectangleBorder(
+                                vertical: 14,
+                              ),
+                          shape: RoundedRectangleBorder(
                             borderRadius:
-                                BorderRadius.circular(
-                              14,
-                            ),
+                                BorderRadius.circular(14),
                           ),
                         ),
                       ),
@@ -2130,28 +2222,21 @@ class _ServiceDetailSection extends StatelessWidget {
         ),
       ),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
               color: iconBackgroundColor,
-              borderRadius:
-                  BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(
-              icon,
-              size: 19,
-              color: iconColor,
-            ),
+            child: Icon(icon, size: 19, color: iconColor),
           ),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
@@ -2195,25 +2280,16 @@ class _PriceTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(
-          alpha: 0.06,
-        ),
+        color: AppColors.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
-          color: AppColors.primary.withValues(
-            alpha: 0.13,
-          ),
+          color: AppColors.primary.withValues(alpha: 0.13),
         ),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: AppColors.primary,
-          ),
+          Icon(icon, size: 20, color: AppColors.primary),
           const SizedBox(height: 10),
           Text(
             label,
@@ -2266,9 +2342,7 @@ class _ErrorView extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: AppColors.borderGray,
-            ),
+            border: Border.all(color: AppColors.borderGray),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2278,8 +2352,7 @@ class _ErrorView extends StatelessWidget {
                 height: 58,
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF1F2),
-                  borderRadius:
-                      BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: const Icon(
                   Icons.error_outline_rounded,
@@ -2306,13 +2379,11 @@ class _ErrorView extends StatelessWidget {
                 ),
                 label: const Text('Thử lại'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      AppColors.primary,
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(13),
+                    borderRadius: BorderRadius.circular(13),
                   ),
                 ),
               ),
