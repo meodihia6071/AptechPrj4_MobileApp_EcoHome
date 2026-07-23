@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "486165213730",
+    "project_id": "ecohome-437cf",
+    "storage_bucket": "ecohome-437cf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:486165213730:android:f2e79a16195ecfa1d7907b",
+        "android_client_info": {
+          "package_name": "com.example.ecohome_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApIUv0sdqmkR0iv3aBmfskIP5oMgMfxtc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
