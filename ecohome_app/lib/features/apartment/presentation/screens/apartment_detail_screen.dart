@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../payment/data/payment_api.dart';
+import '../../../payment/data/payment_invoice.dart';
+import '../../../payment/presentation/screens/payment_checkout_screen.dart';
 import '../../data/apartment_api.dart';
 import '../../data/apartment_info.dart';
 
@@ -14,15 +17,21 @@ class ApartmentDetailScreen extends StatefulWidget {
 
 class _ApartmentDetailScreenState extends State<ApartmentDetailScreen> {
   final _api = ApartmentApi();
+  final _paymentApi = PaymentApi();
   late Future<List<ApartmentInfo>> _future;
+  late Future<List<PaymentInvoice>> _invoiceFuture;
 
   @override
   void initState() {
     super.initState();
     _future = _api.getApartments();
+    _invoiceFuture = _paymentApi.getMyInvoices();
   }
 
-  void _reload() => setState(() => _future = _api.getApartments());
+  void _reload() => setState(() {
+    _future = _api.getApartments();
+    _invoiceFuture = _paymentApi.getMyInvoices();
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -46,12 +55,20 @@ class _ApartmentDetailScreenState extends State<ApartmentDetailScreen> {
                 onRetry: _reload,
               );
             }
+            final apartments = snapshot.requireData;
+            if (apartments.isEmpty) {
+              return const Center(child: Text('Bạn chưa có căn hộ nào.'));
+            }
             return RefreshIndicator(
               onRefresh: () async {
                 _reload();
                 await _future;
               },
-              child: _ApartmentContent(apartments: snapshot.requireData),
+              child: _ApartmentContent(
+                apartments: apartments,
+                invoices: _invoiceFuture,
+                onPaymentCompleted: _reload,
+              ),
             );
           },
         ),
@@ -61,9 +78,15 @@ class _ApartmentDetailScreenState extends State<ApartmentDetailScreen> {
 }
 
 class _ApartmentContent extends StatefulWidget {
-  const _ApartmentContent({required this.apartments});
+  const _ApartmentContent({
+    required this.apartments,
+    required this.invoices,
+    required this.onPaymentCompleted,
+  });
 
   final List<ApartmentInfo> apartments;
+  final Future<List<PaymentInvoice>> invoices;
+  final VoidCallback onPaymentCompleted;
 
   @override
   State<_ApartmentContent> createState() => _ApartmentContentState();
@@ -178,37 +201,11 @@ class _ApartmentContentState extends State<_ApartmentContent> {
           ),
         ),
         const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(20),
+        _ApartmentInvoicesSection(
+          invoices: widget.invoices,
+          roomNumber: info.roomNumber,
           decoration: _cardDecoration(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'THÔNG TIN THANH TOÁN',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.secondary,
-                ),
-              ),
-              const SizedBox(height: 18),
-              _PaymentRow(
-                label: info.primaryLabel,
-                amount: _money(info.primaryAmount),
-                dueDate: info.secondaryAmount == null ? info.nextDueDate : null,
-              ),
-              if (info.secondaryAmount != null) ...[
-                const Divider(height: 32),
-                _PaymentRow(
-                  label: info.secondaryLabel!,
-                  amount: _money(info.secondaryAmount!),
-                  dueDate: info.nextDueDate,
-                  highlighted: true,
-                ),
-              ],
-            ],
-          ),
+          onPaymentCompleted: widget.onPaymentCompleted,
         ),
         if (info.contractType == ContractType.rental) ...[
           const SizedBox(height: 16),
@@ -232,9 +229,202 @@ class _ApartmentContentState extends State<_ApartmentContent> {
 
   static String _number(double value) =>
       NumberFormat('#,##0.##', 'vi_VN').format(value);
-  static String _money(double value) =>
-      '${NumberFormat('#,##0', 'vi_VN').format(value)} đ';
 }
+
+class _ApartmentInvoicesSection extends StatelessWidget {
+  const _ApartmentInvoicesSection({
+    required this.invoices,
+    required this.roomNumber,
+    required this.decoration,
+    required this.onPaymentCompleted,
+  });
+
+  final Future<List<PaymentInvoice>> invoices;
+  final String roomNumber;
+  final BoxDecoration decoration;
+  final VoidCallback onPaymentCompleted;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: decoration,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'HÓA ĐƠN CĂN HỘ',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppColors.secondary,
+          ),
+        ),
+        const SizedBox(height: 16),
+        FutureBuilder<List<PaymentInvoice>>(
+          future: invoices,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return const Text('Không thể tải hóa đơn của căn hộ.');
+            }
+            final items = (snapshot.data ?? const <PaymentInvoice>[])
+                .where(
+                  (item) =>
+                      item.isOutstanding &&
+                      item.roomNumber?.toLowerCase() ==
+                          roomNumber.toLowerCase(),
+                )
+                .toList();
+            if (items.isEmpty) {
+              return const Row(
+                children: [
+                  Icon(Icons.check_circle_outline, color: Colors.green),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text('Căn hộ không có hóa đơn cần thanh toán.'),
+                  ),
+                ],
+              );
+            }
+            final payable = items.where((item) => item.canCheckout).toList();
+            final total = items.fold<double>(
+              0,
+              (sum, item) => sum + item.amount,
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ...items.map((item) => _ApartmentInvoiceRow(invoice: item)),
+                const Divider(height: 28),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Tổng chưa hoàn tất'),
+                    Text(
+                      _formatMoney(total),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                if (payable.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    height: 46,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final changed = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PaymentCheckoutScreen(
+                              invoices: payable,
+                              roomNumber: roomNumber,
+                            ),
+                          ),
+                        );
+                        if (changed == true) onPaymentCompleted();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: const Icon(Icons.payment_rounded),
+                      label: const Text('Thanh toán hóa đơn căn hộ'),
+                    ),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+class _ApartmentInvoiceRow extends StatelessWidget {
+  const _ApartmentInvoiceRow({required this.invoice});
+
+  final PaymentInvoice invoice;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = switch (invoice.status) {
+      PaymentInvoiceStatus.awaitingBankTransfer => 'Chờ xác nhận chuyển khoản',
+      PaymentInvoiceStatus.awaitingCashConfirmation =>
+        'Chờ thanh toán tại Ban quản lý',
+      PaymentInvoiceStatus.overdue => 'Quá hạn',
+      _ => 'Chưa thanh toán',
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: invoice.type == PaymentInvoiceType.rent
+                  ? const Color(0xFFE0E7FF)
+                  : const Color(0xFFDCFCE7),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              invoice.type == PaymentInvoiceType.rent
+                  ? Icons.apartment_rounded
+                  : Icons.cleaning_services_rounded,
+              color: invoice.type == PaymentInvoiceType.rent
+                  ? AppColors.primary
+                  : AppColors.tertiary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  invoice.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  'Hạn ${DateFormat('dd/MM/yyyy').format(invoice.deadline)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.secondary,
+                  ),
+                ),
+                Text(
+                  status,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: invoice.canCheckout
+                        ? Colors.redAccent
+                        : Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _formatMoney(invoice.amount),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatMoney(double value) =>
+    '${NumberFormat('#,##0', 'vi_VN').format(value)} đ';
 
 class _ApartmentSelector extends StatelessWidget {
   const _ApartmentSelector({
@@ -353,63 +543,6 @@ class _InfoTile extends StatelessWidget {
         ),
       ],
     ),
-  );
-}
-
-class _PaymentRow extends StatelessWidget {
-  const _PaymentRow({
-    required this.label,
-    required this.amount,
-    this.dueDate,
-    this.highlighted = false,
-  });
-  final String label;
-  final String amount;
-  final DateTime? dueDate;
-  final bool highlighted;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: highlighted
-              ? const Color(0xFFFFE4E6)
-              : const Color(0xFFE0E7FF),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(
-          highlighted ? Icons.schedule_rounded : Icons.payments_outlined,
-          color: highlighted ? Colors.redAccent : AppColors.primary,
-        ),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 13, color: AppColors.secondary),
-            ),
-            if (dueDate != null)
-              Text(
-                'Hạn thanh toán: ${DateFormat('dd/MM/yyyy').format(dueDate!)}',
-                style: const TextStyle(fontSize: 12, color: Colors.redAccent),
-              ),
-          ],
-        ),
-      ),
-      Text(
-        amount,
-        style: const TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textDark,
-        ),
-      ),
-    ],
   );
 }
 
