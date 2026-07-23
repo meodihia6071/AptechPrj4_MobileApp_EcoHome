@@ -3,7 +3,7 @@ import 'package:ecohome_app/core/constants/app_colors.dart';
 import 'package:ecohome_app/shared/widgets/app_header.dart';
 import 'package:ecohome_app/features/household/presentation/screens/household_screen.dart';
 import 'package:ecohome_app/features/apartment/presentation/screens/apartment_detail_screen.dart';
-
+import 'package:ecohome_app/features/apartment/presentation/screens/my_apartment.dart';
 class HomeDashboardBody extends StatelessWidget {
   final Function(int)? onTabChanged;
 
@@ -192,7 +192,7 @@ class HomeDashboardBody extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const ApartmentDetailScreen(),
+              builder: (context) => const MyApartment(),
             ),
           );
         } else if (title == 'Hộ gia đình') {
