@@ -15,7 +15,8 @@ class ApartmentDetailScreen extends StatefulWidget {
   State<ApartmentDetailScreen> createState() => _ApartmentDetailScreenState();
 }
 
-class _ApartmentDetailScreenState extends State<ApartmentDetailScreen> {
+class _ApartmentDetailScreenState extends State<ApartmentDetailScreen>
+    with WidgetsBindingObserver {
   final _api = ApartmentApi();
   final _paymentApi = PaymentApi();
   late Future<List<ApartmentInfo>> _future;
@@ -24,8 +25,20 @@ class _ApartmentDetailScreenState extends State<ApartmentDetailScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _future = _api.getApartments();
     _invoiceFuture = _paymentApi.getMyInvoices();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _reload();
   }
 
   void _reload() => setState(() {
